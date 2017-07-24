@@ -115,6 +115,58 @@ bool is_weakly_convex(Polyhedron const& p) {
   return true; 
 }
 
+
+template <typename Polyhedron> bool createPolySetFromPolyhedron(const Polyhedron &p)
+{
+	int i = 0; 
+
+	double xa,ya,za,xb,yb,zb,xc,yc,zc; 
+
+	std::stringstream output;
+	bool err = false;
+	typedef typename Polyhedron::Vertex                                 Vertex;
+	typedef typename Polyhedron::Vertex_const_iterator                  VCI;
+	typedef typename Polyhedron::Facet_const_iterator                   FCI;
+	typedef typename Polyhedron::Halfedge_around_facet_const_circulator HFCC;		
+	output << "solid shape, STL ascii file, created with Makertron Technology\n" << "\n"; 
+	for (FCI fi = p.facets_begin(); fi != p.facets_end(); ++fi) {
+		HFCC hc = fi->facet_begin();
+		HFCC hc_end = hc;
+		do {
+			Vertex const& v = *((hc++)->vertex());
+			if ( i == 0 )  {
+				xa = CGAL::to_double(v.point().x());
+				ya = CGAL::to_double(v.point().y());
+				za = CGAL::to_double(v.point().z());
+			}
+			if ( i == 1 )  {
+				xb = CGAL::to_double(v.point().x());
+				yb = CGAL::to_double(v.point().y());
+				zb = CGAL::to_double(v.point().z());
+			}
+			if ( i == 2 ) { 
+				xc = CGAL::to_double(v.point().x());
+				yc = CGAL::to_double(v.point().y());
+				zc = CGAL::to_double(v.point().z());	
+				output << " facet normal 0.0 0.0 0.0\n";
+        output <<  "   outer loop\n";
+        output <<  "     vertex " << xa << " " << ya << " " << za << "\n";
+        output <<  "     vertex " << xb << " " << yb << " " << zb << "\n";
+        output <<  "     vertex " << xc << " " << yc << " " << zc << "\n";
+        output <<  "   endloop\n";
+        output <<  " endfacet\n";
+			}
+			i++; 
+			if ( i == 3 ) i = 0;  
+			 
+		} while (hc != hc_end);
+	}
+	output << "endsolid shape\n";
+	std::cout << output.str() << std::endl; 
+	return err;
+}
+
+
 void cgal_horrible() { 
 
  int i = 0; 
@@ -239,11 +291,16 @@ void cgal_horrible() {
 				result_parts.push_back(result);
 		}
  	}
- 	//std::ofstream file;
- 	//file.open ("test.obj");
- 	//print_polyhedron_wavefront(file,result_parts);
- 	//file.close(); 
- 
+
+	for (std::list<CGAL::Polyhedron_3<Hull_kernel> >::iterator i = result_parts.begin(); i != result_parts.end(); ++i) {
+		createPolySetFromPolyhedron( *i );
+ 	//	std::ofstream file;
+ 	//	file.open ("test.obj");
+ 	//  print_polyhedron_wavefront(file,*i);
+ 	//	file.close(); 
+   }
+
+
 }
 
 int main() {
