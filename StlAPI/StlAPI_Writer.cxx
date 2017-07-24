@@ -209,7 +209,7 @@ StlAPI_ErrorStatus StlAPI_Writer::Write(const TopoDS_Shape& theShape, const Stan
 std::string  StlAPI_Writer::Dump(const TopoDS_Shape& theShape)
 {
 	std::stringstream output;
-	//output << "[";
+	output << "[";
   // write
   if (theASCIIMode)
   {
@@ -224,21 +224,21 @@ std::string  StlAPI_Writer::Dump(const TopoDS_Shape& theShape)
         gp_Vec aNorm;
         gp_Pnt aPnt1, aPnt2, aPnt3;
         aTool.GetTriangle (iTri, aNorm, aPnt1, aPnt2, aPnt3);
-				output << " facet normal 0.0 0.0 0.0\n"
-        output <<  "   outer loop\n";
-        output <<  "     vertex " << aPnt1.X() << " " << aPnt1.Y() << " "  aPnt1.Z() << "\n";
-        output <<  "     vertex " << aPnt2.X() << " " << aPnt2.Y() << " "  aPnt2.Z() << "\n";
-        output <<  "     vertex " << aPnt3.X() << " " << aPnt3.Y() << " "  aPnt3.Z() << "\n";
-        output <<  "   endloop\n";
-        output <<  " endfacet\n";
+				//output << " facet normal 0.0 0.0 0.0\n";
+        //output <<  "   outer loop\n";
+        //output <<  "     vertex " << aPnt1.X() << " " << aPnt1.Y() << " " << aPnt1.Z() << "\n";
+        //output <<  "     vertex " << aPnt2.X() << " " << aPnt2.Y() << " " << aPnt2.Z() << "\n";
+        //output <<  "     vertex " << aPnt3.X() << " " << aPnt3.Y() << " " << aPnt3.Z() << "\n";
+        //output <<  "   endloop\n";
+        //output <<  " endfacet\n";
         //output << aNorm.X() << "," << aNorm.Y() << "," << aNorm.Z() << ",";
-        //output << aPnt1.X() << "," << aPnt1.Y() << "," << aPnt1.Z() << ",";
-        //output << aPnt2.X() << "," << aPnt2.Y() << "," << aPnt2.Z() << ",";
-        //output << aPnt3.X() << "," << aPnt3.Y() << "," << aPnt3.Z() << ",";
+        output << aPnt1.X() << "," << aPnt1.Y() << "," << aPnt1.Z() << ",";
+        output << aPnt2.X() << "," << aPnt2.Y() << "," << aPnt2.Z() << ",";
+        output << aPnt3.X() << "," << aPnt3.Y() << "," << aPnt3.Z() << ",";
     	}
     }
     // footer
-    //output << "0]\n";
+    output << "0]\n";
   }
   return output.str(); 
 }

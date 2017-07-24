@@ -1,23 +1,34 @@
-// ==========================================================
-// MAKERTRON Procedural Cad System  
-// Damien V Towning 
-// 2017
 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL Damien Towning BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
-// ==========================================================
-
+/***************************************************************************
+ *   Copyright (c) Damien Towning         (connolly.damien@gmail.com) 2017 *
+ *                                                                         *
+ *   This file is part of the Makertron CSG cad system.                    *
+ *                                                                         *
+ *   This library is free software; you can redistribute it and/or         *
+ *   modify it under the terms of the GNU Library General Public           *
+ *   License as published by the Free Software Foundation; either          *
+ *   version 2 of the License, or (at your option) any later version.      *
+ *                                                                         *
+ *   This library  is distributed in the hope that it will be useful,      *
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+ *   GNU Library General Public License for more details.                  *
+ *                                                                         *
+ *   You should have received a copy of the GNU Library General Public     *
+ *   License along with this library; see the file COPYING.LIB. If not,    *
+ *   write to the Free Software Foundation, Inc., 59 Temple Place,         *
+ *   Suite 330, Boston, MA  02111-1307, USA                                *
+ *                                                                         *
+ ***************************************************************************/
 
 #include <iostream>
+
+
+#include <CGAL/Simple_cartesian.h>
+#include <CGAL/Polyhedron_incremental_builder_3.h>
+#include <CGAL/Polyhedron_3.h>
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <polyset.h> 
 
 #include <gp.hxx>
 #include <gp_Pln.hxx>
@@ -28,6 +39,10 @@
 
 #include <TopoDS.hxx>
 #include <TopoDS_Shape.hxx>
+#include <TopoDS_Face.hxx>
+#include <TopExp_Explorer.hxx>
+#include <Poly_Triangulation.hxx>
+
 #include <BRepPrimAPI_MakeSphere.hxx>
 #include <TDocStd_Document.hxx>
 //#include <Handle_TDocStd_Document.hxx>
@@ -69,7 +84,7 @@
 #include <ShapeFix_Shape.hxx>
 #include <ShapeFix_Wireframe.hxx>
 #include <BRepCheck_Analyzer.hxx> 
-#include <TopExp_Explorer.hxx>
+
 
 // Streams 
 #include <fstream>
@@ -335,6 +350,131 @@ char *intersection(char *a,char *b) {
 	TopoDS_Shape boolean_result = BRepAlgoAPI_Common( shape_a ,  shape_b ).Shape();
 	char *new_buf = strdup((char*)Write_BREP(boolean_result).c_str());	
 	return new_buf; 
+}
+
+
+// This will be the first example of the naive approach of streaming between brep and CGAL
+// This is not really hard but it is also ugly and as with all things related to CGAL it will
+// be slow and cumbersome. Note that in the case of Minkowski most of the time people are using
+// it for fillets. Could go several ways with this. Use the BREP fillets or write our own
+// Minkowski following the CGAL code as a guide. Basically anything but this! But first off just 
+// some 改善 to demonstrate marrying these things together in the worst way possible. 
+
+// Auxiliary tools
+namespace
+{
+  // Tool to get triangles from triangulation taking into account face
+  // orientation and location
+  class TriangleAccessor
+  {
+  public:
+    TriangleAccessor (const TopoDS_Face& aFace)
+    {
+      TopLoc_Location aLoc;
+      myPoly = BRep_Tool::Triangulation (aFace, aLoc);
+      myTrsf = aLoc.Transformation();
+      myNbTriangles = (myPoly.IsNull() ? 0 : myPoly->Triangles().Length());
+      myInvert = (aFace.Orientation() == TopAbs_REVERSED);
+      if (myTrsf.IsNegative())
+        myInvert = ! myInvert;
+    }
+
+    int NbTriangles () const { return myNbTriangles; } 
+
+    // get i-th triangle and outward normal
+    void GetTriangle (int iTri, gp_Vec &theNormal, gp_Pnt &thePnt1, gp_Pnt &thePnt2, gp_Pnt &thePnt3)
+    {
+      // get positions of nodes
+      int iNode1, iNode2, iNode3;
+      myPoly->Triangles()(iTri).Get (iNode1, iNode2, iNode3);
+      thePnt1 = myPoly->Nodes()(iNode1);
+      thePnt2 = myPoly->Nodes()(myInvert ? iNode3 : iNode2);
+      thePnt3 = myPoly->Nodes()(myInvert ? iNode2 : iNode3);
+
+      // apply transormation if not identity
+      if (myTrsf.Form() != gp_Identity)
+      {
+        thePnt1.Transform (myTrsf);
+        thePnt2.Transform (myTrsf);
+        thePnt3.Transform (myTrsf);
+      }
+
+      // calculate normal
+      theNormal = (thePnt2.XYZ() - thePnt1.XYZ()) ^ (thePnt3.XYZ() - thePnt1.XYZ());
+      Standard_Real aNorm = theNormal.Magnitude();
+      if (aNorm > gp::Resolution())
+        theNormal /= aNorm;
+    }
+
+  private:
+    Handle(Poly_Triangulation) myPoly;
+    gp_Trsf myTrsf;
+    int myNbTriangles;
+    bool myInvert;
+  };
+
+  // convert to float and, on big-endian platform, to little-endian representation
+  inline float convertFloat (Standard_Real aValue)
+  {
+#ifdef OCCT_BINARY_FILE_DO_INVERSE
+    return OSD_BinaryFile::InverseShortReal ((float)aValue);
+#else
+    return (float)aValue;
+#endif
+  }
+}
+
+// Convert a brep to a CGAL something or other 
+char brepToCgal(char *a) { // Screen visuals like village I came to kill ya fillets. 
+	
+	typedef CGAL::Simple_cartesian<double>     Kernel;
+	typedef CGAL::Polyhedron_3<Kernel>         Polyhedron;
+	typedef Polyhedron::HalfedgeDS             HalfedgeDS;
+
+	int plength = 0; 
+	int flength = 0; 
+	int i = 0; 
+
+	TopoDS_Shape shape_a = Read_BREP(a);
+	
+	// This is nasty. Just pushing all points out to array
+	std::vector<double> points; 
+	for (TopExp_Explorer exp (shape_a, TopAbs_FACE); exp.More(); exp.Next())
+  {
+  	TriangleAccessor aTool (TopoDS::Face (exp.Current()));
+    for (int iTri = 1; iTri <= aTool.NbTriangles(); iTri++)
+    {
+     	gp_Vec aNorm;
+      gp_Pnt aPnt1, aPnt2, aPnt3;
+      aTool.GetTriangle (iTri, aNorm, aPnt1, aPnt2, aPnt3);
+			points.push_back( aPnt1.X() ); points.push_back( aPnt1.Y() ); points.push_back( aPnt1.Z() ); plength+=3;
+			points.push_back( aPnt2.X() ); points.push_back( aPnt2.Y() ); points.push_back( aPnt2.Z() ); plength+=3;
+			points.push_back( aPnt3.X() ); points.push_back( aPnt3.Y() ); points.push_back( aPnt3.Z() ); plength+=3;
+			flength++; 			
+    }
+  }
+
+	// Then pushing them in to a cgal polyhedron 
+	HalfedgeDS hds; 
+	typedef typename HalfedgeDS::Vertex::Point Point; 
+	CGAL::Polyhedron_incremental_builder_3<HalfedgeDS> A( hds , true);
+
+	A.begin_surface( plength , flength , 0);  // will need to find vlength and flength 
+	for ( i = 0; i < plength; i+=3 ) { 
+		A.add_vertex( Point( points[i+0], points[i+1], points[i+2]) ); 
+		A.add_vertex( Point( points[i+3], points[i+4], points[i+5]) );
+		A.add_vertex( Point( points[i+6], points[i+7], points[i+8]) ); 
+	}
+
+	for ( i = 0; i < flength; i+=3 ) { 
+		A.begin_facet(); 
+			A.add_vertex_to_facet(i+0); 
+	  	A.add_vertex_to_facet(i+1); 
+	  	A.add_vertex_to_facet(i+2); 
+		A.end_facet();  	
+	}
+	A.end_surface();  
+	
 }
 
  
