@@ -21,21 +21,12 @@
  *                                                                         *
  ***************************************************************************/
 
-#include <iostream>
-
-
-#include <CGAL/Simple_cartesian.h>
-#include <CGAL/Polyhedron_incremental_builder_3.h>
-#include <CGAL/Polyhedron_3.h>
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <polyset.h> 
+// CGAL Includes 
 
 #include <gp.hxx>
 #include <gp_Pln.hxx>
 #include <gp_Ax2.hxx>
 #include <gp_Circ.hxx>
-#include <GC_MakeArcOfCircle.hxx>
-#include <BRepFill_PipeShell.hxx>
 
 #include <TopoDS.hxx>
 #include <TopoDS_Shape.hxx>
@@ -43,30 +34,35 @@
 #include <TopExp_Explorer.hxx>
 #include <Poly_Triangulation.hxx>
 
-#include <BRepPrimAPI_MakeSphere.hxx>
-#include <TDocStd_Document.hxx>
-//#include <Handle_TDocStd_Document.hxx>
-#include <XCAFApp_Application.hxx>
-//#include <Handle_XCAFApp_Application.hxx>
-#include <XCAFDoc_ShapeTool.hxx>
-//#include <Handle_XCAFDoc_ShapeTool.hxx>
-#include <XCAFDoc_DocumentTool.hxx>
-//#include <STEPCAFControl_Writer.hxx>
+#include <Bnd_Box.hxx>
+#include <BRepBndLib.hxx>
+#include <OSD_Path.hxx>
+#include <OSD_OpenFile.hxx>
+#include <RWStl.hxx>
+
 #include <StlAPI_Writer.hxx>
+
+#include <StlMesh_Mesh.hxx>
+#include <StlTransfer.hxx>
+
+#include <BRep_Tool.hxx>
 #include <BRepTools.hxx>
+
 #include <BRepPrimAPI_MakeSphere.hxx>
 #include <BRepPrimAPI_MakeBox.hxx>
-#include <BRepFeat_MakeCylindricalHole.hxx>
-#include <BRepMesh_IncrementalMesh.hxx>
 #include <BRepPrimAPI_MakeCylinder.hxx>
 #include <BRepPrimAPI_MakeCone.hxx>
-#include <BRepBuilderAPI_Transform.hxx>
+#include <BRepPrimAPI_MakePrism.hxx>
+#include <BRepPrimAPI_MakeRevol.hxx>
+
+#include <BRepFeat_MakeCylindricalHole.hxx>
+#include <BRepMesh_IncrementalMesh.hxx>
+
 #include <BRepAlgoAPI_Cut.hxx>
 #include <BRepAlgoAPI_Fuse.hxx>
 #include <BRepAlgoAPI_Common.hxx>
 #include <BRepPrimAPI_MakeTorus.hxx>
-#include <TColgp_Array1OfPnt.hxx>
-#include <BRepPrimAPI_MakeRevol.hxx>
+
 #include <BRepBuilderAPI_MakeWire.hxx>
 #include <BRepBuilderAPI_MakeEdge.hxx>
 #include <BRepBuilderAPI_MakeFace.hxx>
@@ -74,18 +70,12 @@
 #include <BRepBuilderAPI_MakeVertex.hxx>
 #include <BRepBuilderAPI_GTransform.hxx>
 #include <BRepBuilderAPI_MakeSolid.hxx>
-#include <BRepPrimAPI_MakePrism.hxx>
+#include <BRepBuilderAPI_Transform.hxx>
+
 #include <BRepOffsetAPI_Sewing.hxx>
-#include <TopTools_HSequenceOfShape.hxx>
-#include <ShapeAnalysis.hxx>
-#include <ShapeAnalysis_FreeBounds.hxx>
-#include <ShapeAnalysis_ShapeContents.hxx>
-#include <ShapeFix.hxx>
-#include <ShapeFix_Shape.hxx>
-#include <ShapeFix_Wireframe.hxx>
-#include <BRepCheck_Analyzer.hxx> 
 
-
+#include <BrepCgal.h>
+ 
 // Streams 
 #include <fstream>
 #include <iostream>
@@ -93,12 +83,10 @@
 #include <vector>
 
 // Math
+#include <math.h>
+#include <float.h>
 #include <cmath>
 #include <assert.h>
-
-// Namespaces
-
-using namespace std;
 
 extern "C" char *sphere(float radius, float x , float y , float z );
 extern "C" char *box(float x , float y , float z , float xs , float ys , float zs);
@@ -116,6 +104,7 @@ extern "C" char *circle(float r1);
 extern "C" char *extrude(float h1, char *a);
 extern "C" char *cylinder(float r1,float h,float z);
 
+using namespace std;
 
 std::string test()
 {
@@ -127,12 +116,11 @@ std::string process_request(char *text)
 	return std::string("hello"); 
 }
 
-
 // Write BREP 
 std::string Write_BREP(const TopoDS_Shape& shape)
 {
 		//std::cout << "Generating BREP" << std::endl; 
-		stringstream stream;
+		std::stringstream stream;
     BRepTools::Write(shape,stream);		
 		return stream.str(); 
 }
@@ -143,7 +131,7 @@ TopoDS_Shape Read_BREP(std::string brep)
 		//std::cout << "Reading BREP" << std::endl; 
 		BRep_Builder brepb;
 
-		stringstream stream;
+		std::stringstream stream;
 		TopoDS_Shape shape;
 		stream << brep << std::endl; 
     BRepTools::Read(shape,stream,brepb);		
@@ -352,130 +340,19 @@ char *intersection(char *a,char *b) {
 	return new_buf; 
 }
 
+void brepToCgal(char *a) {
 
-// This will be the first example of the naive approach of streaming between brep and CGAL
-// This is not really hard but it is also ugly and as with all things related to CGAL it will
-// be slow and cumbersome. Note that in the case of Minkowski most of the time people are using
-// it for fillets. Could go several ways with this. Use the BREP fillets or write our own
-// Minkowski following the CGAL code as a guide. Basically anything but this! But first off just 
-// some 改善 to demonstrate marrying these things together in the worst way possible. 
-
-// Auxiliary tools
-namespace
-{
-  // Tool to get triangles from triangulation taking into account face
-  // orientation and location
-  class TriangleAccessor
-  {
-  public:
-    TriangleAccessor (const TopoDS_Face& aFace)
-    {
-      TopLoc_Location aLoc;
-      myPoly = BRep_Tool::Triangulation (aFace, aLoc);
-      myTrsf = aLoc.Transformation();
-      myNbTriangles = (myPoly.IsNull() ? 0 : myPoly->Triangles().Length());
-      myInvert = (aFace.Orientation() == TopAbs_REVERSED);
-      if (myTrsf.IsNegative())
-        myInvert = ! myInvert;
-    }
-
-    int NbTriangles () const { return myNbTriangles; } 
-
-    // get i-th triangle and outward normal
-    void GetTriangle (int iTri, gp_Vec &theNormal, gp_Pnt &thePnt1, gp_Pnt &thePnt2, gp_Pnt &thePnt3)
-    {
-      // get positions of nodes
-      int iNode1, iNode2, iNode3;
-      myPoly->Triangles()(iTri).Get (iNode1, iNode2, iNode3);
-      thePnt1 = myPoly->Nodes()(iNode1);
-      thePnt2 = myPoly->Nodes()(myInvert ? iNode3 : iNode2);
-      thePnt3 = myPoly->Nodes()(myInvert ? iNode2 : iNode3);
-
-      // apply transormation if not identity
-      if (myTrsf.Form() != gp_Identity)
-      {
-        thePnt1.Transform (myTrsf);
-        thePnt2.Transform (myTrsf);
-        thePnt3.Transform (myTrsf);
-      }
-
-      // calculate normal
-      theNormal = (thePnt2.XYZ() - thePnt1.XYZ()) ^ (thePnt3.XYZ() - thePnt1.XYZ());
-      Standard_Real aNorm = theNormal.Magnitude();
-      if (aNorm > gp::Resolution())
-        theNormal /= aNorm;
-    }
-
-  private:
-    Handle(Poly_Triangulation) myPoly;
-    gp_Trsf myTrsf;
-    int myNbTriangles;
-    bool myInvert;
-  };
-
-  // convert to float and, on big-endian platform, to little-endian representation
-  inline float convertFloat (Standard_Real aValue)
-  {
-#ifdef OCCT_BINARY_FILE_DO_INVERSE
-    return OSD_BinaryFile::InverseShortReal ((float)aValue);
-#else
-    return (float)aValue;
-#endif
-  }
+	TopoDS_Shape shape = Read_BREP(a);
+	BrepCgal stl_writer;
+	BRepMesh_IncrementalMesh ( shape, 0.9);		
+	std::cout << stl_writer.test(shape) << std::endl; 
 }
 
-// Convert a brep to a CGAL something or other 
-char brepToCgal(char *a) { // Screen visuals like village I came to kill ya fillets. 
-	
-	typedef CGAL::Simple_cartesian<double>     Kernel;
-	typedef CGAL::Polyhedron_3<Kernel>         Polyhedron;
-	typedef Polyhedron::HalfedgeDS             HalfedgeDS;
+int main() { 
+	//brepToCgal( sphere(10.0, 0.0 , 0.0 , 0.0 )  ); 
+	brepToCgal( box(0.0,0.0,0.0,10.0,10.0,10.0) ); 
 
-	int plength = 0; 
-	int flength = 0; 
-	int i = 0; 
-
-	TopoDS_Shape shape_a = Read_BREP(a);
-	
-	// This is nasty. Just pushing all points out to array
-	std::vector<double> points; 
-	for (TopExp_Explorer exp (shape_a, TopAbs_FACE); exp.More(); exp.Next())
-  {
-  	TriangleAccessor aTool (TopoDS::Face (exp.Current()));
-    for (int iTri = 1; iTri <= aTool.NbTriangles(); iTri++)
-    {
-     	gp_Vec aNorm;
-      gp_Pnt aPnt1, aPnt2, aPnt3;
-      aTool.GetTriangle (iTri, aNorm, aPnt1, aPnt2, aPnt3);
-			points.push_back( aPnt1.X() ); points.push_back( aPnt1.Y() ); points.push_back( aPnt1.Z() ); plength+=3;
-			points.push_back( aPnt2.X() ); points.push_back( aPnt2.Y() ); points.push_back( aPnt2.Z() ); plength+=3;
-			points.push_back( aPnt3.X() ); points.push_back( aPnt3.Y() ); points.push_back( aPnt3.Z() ); plength+=3;
-			flength++; 			
-    }
-  }
-
-	// Then pushing them in to a cgal polyhedron 
-	HalfedgeDS hds; 
-	typedef typename HalfedgeDS::Vertex::Point Point; 
-	CGAL::Polyhedron_incremental_builder_3<HalfedgeDS> A( hds , true);
-
-	A.begin_surface( plength , flength , 0);  // will need to find vlength and flength 
-	for ( i = 0; i < plength; i+=3 ) { 
-		A.add_vertex( Point( points[i+0], points[i+1], points[i+2]) ); 
-		A.add_vertex( Point( points[i+3], points[i+4], points[i+5]) );
-		A.add_vertex( Point( points[i+6], points[i+7], points[i+8]) ); 
-	}
-
-	for ( i = 0; i < flength; i+=3 ) { 
-		A.begin_facet(); 
-			A.add_vertex_to_facet(i+0); 
-	  	A.add_vertex_to_facet(i+1); 
-	  	A.add_vertex_to_facet(i+2); 
-		A.end_facet();  	
-	}
-	A.end_surface();  
-	
+	return 0; 
 }
 
- 
 
