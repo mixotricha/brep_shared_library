@@ -1,15 +1,24 @@
-// Copyright (c) 1999-2014 OPEN CASCADE SAS
-//
-// This file is part of Open CASCADE Technology software library.
-//
-// This library is free software; you can redistribute it and/or modify it under
-// the terms of the GNU Lesser General Public License version 2.1 as published
-// by the Free Software Foundation, with special exception defined in the file
-// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
-// distribution for complete text of the license and disclaimer of any warranty.
-//
-// Alternatively, this file may be used under the terms of Open CASCADE
-// commercial license or contractual agreement.
+/***************************************************************************
+ *   Copyright (c) Damien Towning         (connolly.damien@gmail.com) 2017 *
+ *                                                                         *
+ *   This file is part of the Makertron CSG cad system.                    *
+ *                                                                         *
+ *   This library is free software; you can redistribute it and/or         *
+ *   modify it under the terms of the GNU Library General Public           *
+ *   License as published by the Free Software Foundation; either          *
+ *   version 2 of the License, or (at your option) any later version.      *
+ *                                                                         *
+ *   This library  is distributed in the hope that it will be useful,      *
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+ *   GNU Library General Public License for more details.                  *
+ *                                                                         *
+ *   You should have received a copy of the GNU Library General Public     *
+ *   License along with this library; see the file COPYING.LIB. If not,    *
+ *   write to the Free Software Foundation, Inc., 59 Temple Place,         *
+ *   Suite 330, Boston, MA  02111-1307, USA                                *
+ *                                                                         *
+ ***************************************************************************/
 
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h> 
 #include <CGAL/Polyhedron_3.h> 
@@ -64,10 +73,10 @@ namespace
     int NbTriangles () const { return myNbTriangles; } 
 
     // get i-th triangle and outward normal
-    void GetTriangle (int iTri, gp_Vec &theNormal, gp_Pnt &thePnt1, gp_Pnt &thePnt2, gp_Pnt &thePnt3, int &iNode1, int &iNode2, int &iNode3)
+    void GetTriangle (int iTri, gp_Vec &theNormal, gp_Pnt &thePnt1, gp_Pnt &thePnt2, gp_Pnt &thePnt3)
     {
       // get positions of nodes
-      //int iNode1, iNode2, iNode3;
+      int iNode1, iNode2, iNode3;
       myPoly->Triangles()(iTri).Get (iNode1, iNode2, iNode3); 
       thePnt1 = myPoly->Nodes()(iNode1);
       thePnt2 = myPoly->Nodes()(myInvert ? iNode3 : iNode2);
@@ -188,33 +197,18 @@ template <typename Polyhedron> bool createPolySetFromPolyhedron(const Polyhedron
 	return err;
 }
 
+// --------------------------------------------------------------
+// Convert a BREP in to a CGAL surface. Sure a more optimal way 
+// exists to do this but for now will get the job done. 
+// --------------------------------------------------------------
 std::string BrepCgal::test(TopoDS_Shape& aShape) { 
 
 	std::stringstream output;
-	std::vector<int> faces; 
 	std::vector<double> points;   
-
-	Standard_Integer theNbTri;
-  Standard_Integer theNbEdges;
-  Standard_Integer theNbNodes;
-
-  Handle(Poly_Triangulation) T;
-  TopLoc_Location L;
-
-  /*for ( TopExp_Explorer ex(aShape, TopAbs_FACE); ex.More(); ex.Next()) {
-    TopoDS_Face F = TopoDS::Face(ex.Current());
-    T = BRep_Tool::Triangulation(F, L); 
-		if (!T.IsNull()) {
-			for (int iTri = 1; iTri <= T->NbTriangles(); iTri++) { 
-				Standard_Integer iNode1;
-  			Standard_Integer iNode2;
-  			Standard_Integer iNode3;
-				T->Triangles()(iTri).Get (iNode1, iNode2, iNode3);
-				std::cout << iNode1 << "  " << iNode2 << "  " << iNode3 << std::endl; 
-			}
-		}
-	}*/
+	std::vector<double> nPoints;   
+	std::vector<int> nFaces; 
 	
+	// complete winding of points in triangle order. Every 9 values is a face. 
 	for (TopExp_Explorer exp (aShape, TopAbs_FACE); exp.More(); exp.Next())
 	{
 		TriangleAccessor aTool (TopoDS::Face (exp.Current()));
@@ -223,30 +217,49 @@ std::string BrepCgal::test(TopoDS_Shape& aShape) {
 		 gp_Vec aNorm;
 	   gp_Pnt aPnt1, aPnt2, aPnt3;
 		 int iNode1, iNode2, iNode3;
-		 aTool.GetTriangle (iTri, aNorm, aPnt1, aPnt2, aPnt3 , iNode1 , iNode2 , iNode3);
-		 std::cout << iNode1 << " "  << iNode2 << " " << iNode3 << std::endl; 
-		 //points.push_back( aPnt1.X() ); points.push_back( aPnt1.Y() ); points.push_back( aPnt1.Z() );
-		 //points.push_back( aPnt2.X() ); points.push_back( aPnt2.Y() ); points.push_back( aPnt2.Z() );
-		 //points.push_back( aPnt3.X() ); points.push_back( aPnt3.Y() ); points.push_back( aPnt3.Z() ); 			
+		 aTool.GetTriangle (iTri, aNorm, aPnt1, aPnt2, aPnt3);
+		 points.push_back( aPnt1.X() ); points.push_back( aPnt1.Y() ); points.push_back( aPnt1.Z() );
+		 points.push_back( aPnt2.X() ); points.push_back( aPnt2.Y() ); points.push_back( aPnt2.Z() );
+		 points.push_back( aPnt3.X() ); points.push_back( aPnt3.Y() ); points.push_back( aPnt3.Z() ); 			
 		}
 	}
 
+	// Now convert to reduced index form for CGAL. Convexity problems if we repeat vectors.  
+	for ( int i = 0; i < points.size(); i+=9 ) { // complete face is always [x,y,z,x,y,z,x,y,z]  
+		// Grab our face set fA,fB,fC 
+		xa = points[i+0]; ya = points[i+1]; za = points[i+2]; 
+		xb = points[i+3]; yb = points[i+4]; zb = points[i+5];
+		xc = points[i+6]; yc = points[i+7]; zc = points[i+8];
+		int fA = i+0; int fB = i+3; int fC = i+6; 
+		int nFA = fA; int nFB = fB; int nFC = fC;   
+		for ( int j = 0; j < nPoints.size(); j+=3 ) { // Have we used the same [x,y,z] before 	 
+			xj = nPoints[j+0]; yj = nPoints[j+1]; zj = nPoints[j+2]; 
+			if ( xa == xj && ya == yj && za == zj ) nFA = j+0; 
+			if ( xb == xj && yb == yj && zb == zj ) nFB = j+0; 
+			if ( xc == xj && yc == yj && zc == zj ) nFC = j+0; 			
+		}
+		// If we did not find it in nPoints then add it to nPoints 
+		if ( fA == nFA ) { nPoints.push_back(xa); nPoints.push_back(ya); nPoints.push_back(za) } 
+		if ( fB == nFB ) { nPoints.push_back(xb); nPoints.push_back(yb); nPoints.push_back(zb) } 
+		if ( fC == nFC ) { nPoints.push_back(xc); nPoints.push_back(yc); nPoints.push_back(zc) } 
+ 		// Push out the reduced index 
+		nFaces.push_back(nFA); nFaces.push_back(nFB); nFaces.push_back(nFC); 
+	}
+
+	output << nPoints.size() << " " << nFaces.size() << "\n"
+	for ( int i = 0; i < nPoints.size(); i+=3 ) {
+		output << "v " << nPoints[i+0] << " " nPoints[i+1] << " " << nPoints[i+2] << "\n"; 
+	}  
+	for ( int j = 0; j < nFaces.size(); i+=3 ) { 
+		output << "f 3 " << nFaces[j+0] << " " << nFaces[j+1] << " " << nFaces[j+2] << "\n"; 
+	}
 	
-
-
-	//for ( int i = 0; i < points.size()/3; i+=3 ) {
-	//	faces.push_back( i+0 ); 
-	//	faces.push_back( i+1 ); 
-	//	faces.push_back( i+2 );  
-	//}  
-
 	//Polyhedron PA;
   //surface_builder<HalfedgeDS> builder( points, faces );
   //PA.delegate( builder );
 	//createPolySetFromPolyhedron( PA );
   //Nef_polyhedron A(PA);
 
-	output << "0]\n";	
 	return output.str(); 
 }
 
