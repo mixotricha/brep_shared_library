@@ -21,7 +21,7 @@
  *                                                                         *
  ***************************************************************************/
 
-// CGAL Includes 
+// OpenCascade Includes 
 
 #include <gp.hxx>
 #include <gp_Pln.hxx>
@@ -71,9 +71,9 @@
 #include <BRepBuilderAPI_GTransform.hxx>
 #include <BRepBuilderAPI_MakeSolid.hxx>
 #include <BRepBuilderAPI_Transform.hxx>
-
 #include <BRepOffsetAPI_Sewing.hxx>
 
+// Brep To CGAL conversion 
 #include <BrepCgal.h>
  
 // Streams 
@@ -88,6 +88,7 @@
 #include <cmath>
 #include <assert.h>
 
+// externs for FFI binding to node 
 extern "C" char *sphere(float radius, float x , float y , float z );
 extern "C" char *box(float x , float y , float z , float xs , float ys , float zs);
 extern "C" char *cone(float r1,float r2,float h,float z);
@@ -106,15 +107,9 @@ extern "C" char *cylinder(float r1,float h,float z);
 
 using namespace std;
 
-std::string test()
-{
-	return std::string("hello"); 
-}
-
-std::string process_request(char *text)
-{
-	return std::string("hello"); 
-}
+// couple of test functions 
+std::string test() { return std::string("hello"); }
+std::string process_request(char *text) { return std::string("hello");  }
 
 // Write BREP 
 std::string Write_BREP(const TopoDS_Shape& shape)
@@ -262,6 +257,7 @@ char *circle(float r1) {
 	return new_buf; 	
 }
 
+// Polyhedron 
 char *polyhedron(int **faces,float *points,int f_length) {
 	BRepOffsetAPI_Sewing sew(0.1);
 	Standard_Integer a,b; 
@@ -340,17 +336,23 @@ char *intersection(char *a,char *b) {
 	return new_buf; 
 }
 
-void brepToCgal(char *a) {
+void minkowski(char *a,char *b) {
+	
+	TopoDS_Shape shape_a = Read_BREP(a);	
+	TopoDS_Shape shape_b = Read_BREP(b);
+ 
+	BRepMesh_IncrementalMesh ( shape_a, 0.1 );
+	BRepMesh_IncrementalMesh ( shape_b, 9.0 );
+	
+	BrepCgal brepcgal;
 
-	TopoDS_Shape shape = Read_BREP(a);
-	BrepCgal stl_writer;
-	BRepMesh_IncrementalMesh ( shape, 0.9);		
-	std::cout << stl_writer.test(shape) << std::endl; 
+	brepcgal.minkowski( shape_a , shape_b ); 	
+	 
 }
 
 int main() { 
-	//brepToCgal( sphere(10.0, 0.0 , 0.0 , 0.0 )  ); 
-	brepToCgal( box(0.0,0.0,0.0,10.0,10.0,10.0) ); 
+	
+	minkowski( box(-5.0,-5.0,-5.0,10.0,10.0,10.0) , sphere(1000.0, 0.0 , 0.0 , 0.0 )  ); 
 
 	return 0; 
 }
