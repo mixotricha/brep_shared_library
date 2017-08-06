@@ -21,25 +21,6 @@
  *                                                                         *
  ***************************************************************************/
 
-#include <Standard.hxx>
-#include <Standard_DefineAlloc.hxx>
-#include <Standard_Handle.hxx>
-
-#include <Standard_Boolean.hxx>
-#include <StlAPI_ErrorStatus.hxx>
-#include <Standard_CString.hxx>
-// Streams 
-#include <fstream>
-#include <iostream>
-#include <string>
-#include <vector>
-
-// Math
-#include <math.h>
-#include <float.h>
-#include <cmath>
-#include <assert.h>
-
 class StlMesh_Mesh;
 class TopoDS_Shape;
 
@@ -49,9 +30,9 @@ public:
 
 	//DEFINE_STANDARD_ALLOC
 	Standard_EXPORT BrepCgal();
-	//Standard_EXPORT std::string Convert(const TopoDS_Shape& aShape);
-	Standard_EXPORT template <typename Polyhedron> bool BrepToCgal(TopoDS_Shape& aShape, Polyhedron& p);
-	Standard_EXPORT bool minkowski(TopoDS_Shape& aShape, TopoDS_Shape& bShape);
+	//Standard_EXPORT 
+  template <typename Polyhedron> bool BrepToCgal(TopoDS_Shape& aShape, Polyhedron& p);
+	Standard_EXPORT bool minkowski(TopoDS_Shape& aShape, TopoDS_Shape& bShape, TopoDS_Shape &rShape);
 								
 protected:
 

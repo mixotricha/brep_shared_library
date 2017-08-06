@@ -1,10 +1,14 @@
 
 CXX=g++
 DEFINES= 
-#CXXFLAGS = -O3 -std=gnu++11 -frounding-math -m64 -shared -fPIC -DCGAL_EIGEN3_ENABLED -DCGAL_USE_GMP -DCGAL_USE_MPFR 
-CXXFLAGS=-O3 -std=gnu++11 -frounding-math -m64 -fPIC -DCGAL_EIGEN3_ENABLED -DCGAL_USE_GMP -DCGAL_USE_MPFR 
 
-TARGET=brep
+CXXFLAGS = -O3 -std=gnu++11 -frounding-math -m64 -shared -fPIC -DCGAL_EIGEN3_ENABLED -DCGAL_USE_GMP -DCGAL_USE_MPFR 
+TARGET=brep.so
+
+
+#CXXFLAGS=-O3 -std=gnu++11 -frounding-math -m64 -fPIC -DCGAL_EIGEN3_ENABLED -DCGAL_USE_GMP -DCGAL_USE_MPFR 
+#TARGET=brep
+
 
 OC_INCL_DIR=/home/mixotricha/workspace/opencascade-7.1.0/inc
 OC_LIB_DIR=/home/mixotricha/workspace/opencascade-7.1.0/lin64/gcc/lib

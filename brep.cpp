@@ -104,6 +104,7 @@ extern "C" char *rotateZ(float z , char *a);
 extern "C" char *circle(float r1);
 extern "C" char *extrude(float h1, char *a);
 extern "C" char *cylinder(float r1,float h,float z);
+extern "C" char *minkowski(char *a, char*b);
 
 using namespace std;
 
@@ -143,9 +144,25 @@ void Write_STL(const TopoDS_Shape& shape)
 
 // Write a brep out to an STL string 
 char *convert_brep_tostring(char *brep,float quality) { 
+	
+	// Tolerances 
+	Standard_Real tolerance = quality;
+  Standard_Real angular_tolerance = 0.5;
+  Standard_Real minTriangleSize = Precision::Confusion();
+
 	TopoDS_Shape shape = Read_BREP(brep);
 	StlAPI_Writer stl_writer;
-	BRepMesh_IncrementalMesh ( shape, quality);	
+
+	// Set the tolerances
+	BRepMesh_FastDiscret::Parameters m_MeshParams;
+  m_MeshParams.ControlSurfaceDeflection = Standard_True; 
+  m_MeshParams.Deflection = tolerance;
+  m_MeshParams.MinSize = minTriangleSize;
+  m_MeshParams.InternalVerticesMode = Standard_False;
+  m_MeshParams.Relative=Standard_False;
+  m_MeshParams.Angle = angular_tolerance;
+
+	BRepMesh_IncrementalMesh ( shape, m_MeshParams );	
 	char *new_buf = strdup((char*)stl_writer.Dump(shape).c_str());			
   return new_buf; 
 }
@@ -201,8 +218,10 @@ char *rotateZ( float z , char *a ) {
 char *sphere(float radius, float x , float y , float z ) {
 	//std::cout << "Making Sphere" << radius << " " << x << " " << y << " " << z << std::endl;  	  	
 	Standard_Real sphere_radius = radius;
-	gp_Ax2 sphere_origin = gp_Ax2(gp_Pnt(x,y,z), gp_Dir(0,0,1));
-	TopoDS_Shape sphere = BRepPrimAPI_MakeSphere(sphere_origin, sphere_radius ).Shape();
+	//gp_Ax2 sphere_origin = gp_Ax2(gp_Pnt(x,y,z), gp_Dir(0,0,1));
+	//TopoDS_Shape sphere = BRepPrimAPI_MakeSphere(sphere_origin, sphere_radius ).Shape();
+	TopoDS_Shape sphere = BRepPrimAPI_MakeSphere( sphere_radius ).Shape();
+
 	char *new_buf = strdup((char*)Write_BREP(sphere).c_str());	
 	return new_buf; 
 } 
@@ -320,7 +339,7 @@ char *uni(char *a,char *b) {
 	//std::cout << "Generating Union" << std::endl; 
 	TopoDS_Shape shape_a = Read_BREP(a);
 	TopoDS_Shape shape_b = Read_BREP(b);
-	TopoDS_Shape boolean_result;
+	TopoDS_Shape boolean_result; 
 	boolean_result = BRepAlgoAPI_Fuse( shape_a ,  shape_b ).Shape();	
 	char *new_buf = strdup((char*)Write_BREP(boolean_result).c_str());	
 	return new_buf; 
@@ -336,25 +355,43 @@ char *intersection(char *a,char *b) {
 	return new_buf; 
 }
 
-void minkowski(char *a,char *b) {
-	
+char *minkowski(char *a,char *b) {
+	// Tolerances 
+	Standard_Real tolerance = 0.25;
+  Standard_Real angular_tolerance = 0.5;
+  Standard_Real minTriangleSize = Precision::Confusion();
+	// Shapes
 	TopoDS_Shape shape_a = Read_BREP(a);	
 	TopoDS_Shape shape_b = Read_BREP(b);
- 
-	BRepMesh_IncrementalMesh ( shape_a, 0.1 );
-	BRepMesh_IncrementalMesh ( shape_b, 9.0 );
-	
+ 	TopoDS_Shape rShape; 
+	// Set the tolerances
+	BRepMesh_FastDiscret::Parameters m_MeshParams;
+  m_MeshParams.ControlSurfaceDeflection = Standard_True; 
+  m_MeshParams.Deflection = tolerance;
+  m_MeshParams.MinSize = minTriangleSize;
+  m_MeshParams.InternalVerticesMode = Standard_False;
+  m_MeshParams.Relative=Standard_False;
+  m_MeshParams.Angle = angular_tolerance;
+	// Incremental meshes from shapes 
+	BRepMesh_IncrementalMesh ( shape_a, m_MeshParams );
+	BRepMesh_IncrementalMesh ( shape_b, m_MeshParams );
+ 	// In to the CGAL 
 	BrepCgal brepcgal;
-
-	brepcgal.minkowski( shape_a , shape_b ); 	
-	 
+	brepcgal.minkowski( shape_a , shape_b , rShape );
+	// Out again but only -one- result for now  	
+	char *new_buf = strdup((char*)Write_BREP(rShape).c_str());	
+	return new_buf; 
 }
 
 int main() { 
-	
-	minkowski( box(-5.0,-5.0,-5.0,10.0,10.0,10.0) , sphere(1000.0, 0.0 , 0.0 , 0.0 )  ); 
-
-	return 0; 
+	std::cout <<
+  uni(
+    minkowski(
+        box(-25.0,-25.0,-25.0,50.0,50.0,50.0), 
+        sphere(25.0, 0.0 , 0.0 , 0.0)
+    ),
+		translate( 0.0 , 0.0, -100 , cylinder( 20.0 , 200.0 , 0.0 ))
+	);
+ return 0;  
 }
-
 

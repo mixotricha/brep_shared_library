@@ -19,51 +19,120 @@
  *   Suite 330, Boston, MA  02111-1307, USA                                *
  *                                                                         *
  ***************************************************************************/
+//#include <Standard.hxx>
+//#include <Standard_DefineAlloc.hxx>
+//#include <Standard_Handle.hxx>
+
+//#include <Standard_Boolean.hxx>
+//#include <StlAPI_ErrorStatus.hxx>
+//#include <Standard_CString.hxx>
 
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h> 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-
 #include <CGAL/Polyhedron_3.h> 
 #include <CGAL/Nef_polyhedron_3.h> 
-
 #include <CGAL/IO/Nef_polyhedron_iostream_3.h> 
 #include <CGAL/IO/Polyhedron_iostream.h> 
-
 #include <CGAL/OFF_to_nef_3.h>
 #include <CGAL/IO/OFF_reader.h>
-
 #include <CGAL/IO/print_wavefront.h>
-
 #include <CGAL/Polygon_mesh_processing/stitch_borders.h>
 #include <CGAL/Polygon_mesh_processing/self_intersections.h>
-
 #include <CGAL/Surface_mesh.h>
 #include <CGAL/boost/graph/graph_traits_Surface_mesh.h>
 #include <CGAL/boost/graph/graph_traits_Polyhedron_3.h>
-
 #include <CGAL/Polygon_mesh_processing/orient_polygon_soup.h>
 #include <CGAL/Polygon_mesh_processing/polygon_soup_to_polygon_mesh.h>
 #include <CGAL/Polygon_mesh_processing/orientation.h>
-
 #include <CGAL/Polygon_mesh_processing/triangulate_hole.h>
+#include <CGAL/Nef_3/SNC_indexed_items.h>
+#include <CGAL/convex_decomposition_3.h> 
+#include <CGAL/convex_hull_3.h>
 
 // Brep Includes
+
+#include <gp.hxx>
+#include <gp_Pln.hxx>
+#include <gp_Ax2.hxx>
+#include <gp_Circ.hxx>
+
+#include <TopoDS.hxx>
+#include <TopoDS_Shape.hxx>
+#include <TopoDS_Face.hxx>
+#include <TopExp_Explorer.hxx>
+#include <Poly_Triangulation.hxx>
+
 #include <Bnd_Box.hxx>
 #include <BRepBndLib.hxx>
 #include <OSD_Path.hxx>
 #include <OSD_OpenFile.hxx>
 #include <RWStl.hxx>
+
 #include <StlAPI_Writer.hxx>
+
 #include <StlMesh_Mesh.hxx>
 #include <StlTransfer.hxx>
-#include <BrepCgal.h>
+
 #include <BRep_Tool.hxx>
-#include <TopoDS.hxx>
-#include <TopoDS_Face.hxx>
-#include <TopExp_Explorer.hxx>
-#include <Poly_Triangulation.hxx>
+#include <BRepTools.hxx>
+
+#include <BRepPrimAPI_MakeSphere.hxx>
+#include <BRepPrimAPI_MakeBox.hxx>
+#include <BRepPrimAPI_MakeCylinder.hxx>
+#include <BRepPrimAPI_MakeCone.hxx>
+#include <BRepPrimAPI_MakePrism.hxx>
+#include <BRepPrimAPI_MakeRevol.hxx>
+
+#include <BRepFeat_MakeCylindricalHole.hxx>
+#include <BRepMesh_IncrementalMesh.hxx>
+
+#include <BRepAlgoAPI_Cut.hxx>
+#include <BRepAlgoAPI_Fuse.hxx>
+#include <BRepAlgoAPI_Common.hxx>
+#include <BRepPrimAPI_MakeTorus.hxx>
+
+#include <BRepBuilderAPI_MakeWire.hxx>
+#include <BRepBuilderAPI_MakeEdge.hxx>
+#include <BRepBuilderAPI_MakeFace.hxx>
+#include <BRepBuilderAPI_MakePolygon.hxx>
+#include <BRepBuilderAPI_MakeVertex.hxx>
+#include <BRepBuilderAPI_GTransform.hxx>
+#include <BRepBuilderAPI_MakeSolid.hxx>
+#include <BRepBuilderAPI_Transform.hxx>
+#include <BRepOffsetAPI_Sewing.hxx>
+
+#include "ShapeAnalysis_ShapeTolerance.hxx"
+#include "ShapeAnalysis_ShapeContents.hxx"
+#include "ShapeAnalysis_CheckSmallFace.hxx"
+#include "ShapeAnalysis_DataMapOfShapeListOfReal.hxx"
+#include "ShapeAnalysis_Surface.hxx"
+
+#include <ShapeUpgrade_ShapeDivideAngle.hxx>
+
+#include "BRepCheck_Analyzer.hxx"
+#include "BRepLib.hxx"
+#include "ShapeBuild_ReShape.hxx"
+#include "ShapeFix.hxx"
+#include "ShapeFix_FixSmallFace.hxx"
+#include "BRepAlgoAPI_Fuse.hxx"
+
+#include <BrepCgal.h>
+
 
 #include <boost/foreach.hpp>
+#include <boost/unordered_set.hpp>
+
+// Streams 
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <vector>
+
+// Math
+#include <math.h>
+#include <float.h>
+#include <cmath>
+#include <assert.h>
 
 using namespace std;
 
@@ -107,10 +176,6 @@ namespace
       thePnt2 = myPoly->Nodes()(myInvert ? iNode3 : iNode2);
       thePnt3 = myPoly->Nodes()(myInvert ? iNode2 : iNode3);	
 
-			int a = iNode1; 
-			int b = (myInvert ? iNode3 : iNode2); 
-			int c = (myInvert ? iNode2 : iNode3);
-
       // apply transormation if not identity
       if (myTrsf.Form() != gp_Identity)
       {
@@ -122,13 +187,7 @@ namespace
       // calculate normal
       theNormal = (thePnt2.XYZ() - thePnt1.XYZ()) ^ (thePnt3.XYZ() - thePnt1.XYZ());
       Standard_Real aNorm = theNormal.Magnitude();
-      if (aNorm > gp::Resolution())
-        theNormal /= aNorm;
-
-			std::cout << a << " " << thePnt1.X() << " " << thePnt1.Y() << " " << thePnt1.Z() << std::endl; 
-			std::cout << b << " " << thePnt2.X() << " " << thePnt2.Y() << " " << thePnt2.Z() << std::endl; 
-			std::cout << c << " " << thePnt3.X() << " " << thePnt3.Y() << " " << thePnt3.Z() << std::endl; 
-	
+      if (aNorm > gp::Resolution()) theNormal /= aNorm;
     }
 
   private:
@@ -143,6 +202,7 @@ namespace
 
 BrepCgal::BrepCgal() {
 }
+
 
 // ---------------------------------------------------------------------------------
 // export the result back out as vector list
@@ -196,8 +256,107 @@ template <typename Polyhedron> bool createPolySetFromPolyhedron(const Polyhedron
 }
 
 
+// ---------------------------------------------------------------------------------
+// export the result back out as Brep 
+// ---------------------------------------------------------------------------------
+template <typename Polyhedron> bool createBrepFromPolyhedron(const Polyhedron &p,TopoDS_Shape &aShape) {
+
+	int i = 0; 
+	double xa,ya,za,xb,yb,zb,xc,yc,zc; 
+	//std::stringstream output;
+	bool err = false;
+
+	// BREP
+	BRepOffsetAPI_Sewing sew;
+	Standard_Integer a,b; 
+	Standard_Integer width = 0; 
+	//Standard_Real x1, y1, z1;
+	//Standard_Real x2, y2, z2; 
+	TopoDS_Wire wire;		
+	BRep_Builder builder;
+	std::vector<TopoDS_Vertex> foo; 
+
+	// CGAL
+	typedef typename Polyhedron::Vertex                                 Vertex;
+	typedef typename Polyhedron::Vertex_const_iterator                  VCI;
+	typedef typename Polyhedron::Facet_const_iterator                   FCI;
+	typedef typename Polyhedron::Halfedge_around_facet_const_circulator HFCC;		
+	typedef typename Polyhedron::Point_3  Point3;
+
+	for (FCI fi = p.facets_begin(); fi != p.facets_end(); ++fi) {
+		HFCC hc = fi->facet_begin();
+		HFCC hc_end = hc;
+		do {
+			Vertex const& v = *((hc++)->vertex());
+			if ( i == 0 )  {
+				xa = CGAL::to_double(v.point().x());
+				ya = CGAL::to_double(v.point().y());
+				za = CGAL::to_double(v.point().z());
+			}
+			if ( i == 1 )  {
+				xb = CGAL::to_double(v.point().x());
+				yb = CGAL::to_double(v.point().y());
+				zb = CGAL::to_double(v.point().z());
+			}
+			if ( i == 2 ) { 
+				xc = CGAL::to_double(v.point().x());
+				yc = CGAL::to_double(v.point().y());
+				zc = CGAL::to_double(v.point().z());
+				foo.push_back( BRepBuilderAPI_MakeVertex(gp_Pnt(xa,ya,za)) ); 
+				foo.push_back( BRepBuilderAPI_MakeVertex(gp_Pnt(xb,yb,zb)) ); 
+				foo.push_back( BRepBuilderAPI_MakeVertex(gp_Pnt(xc,yc,zc)) ); 	
+			}
+			i++; 
+			if ( i == 3 ) i = 0;  
+		} while (hc != hc_end);
+	}
+
+	for ( i = 0; i < foo.size(); i+=3 ) { 
+		builder.MakeWire(wire);			
+		//builder.Add(wire, BRepBuilderAPI_MakeEdge(foo[i+0],foo[i+1]));
+		//builder.Add(wire, BRepBuilderAPI_MakeEdge(foo[i+1],foo[i+2]));
+		//builder.Add(wire, BRepBuilderAPI_MakeEdge(foo[i+2],foo[i+0]));
+		//0,2, 2,1, 1,0 
+		builder.Add(wire, BRepBuilderAPI_MakeEdge(foo[i+0],foo[i+2]));
+		builder.Add(wire, BRepBuilderAPI_MakeEdge(foo[i+2],foo[i+1]));
+		builder.Add(wire, BRepBuilderAPI_MakeEdge(foo[i+1],foo[i+0]));
+	
+		sew.Add( BRepBuilderAPI_MakeFace( wire ) ); // add to sewing object
+	}	
+
+	sew.Perform(); 
+	
+	TopoDS_Shape obj = sew.SewedShape(); // get the shape
+
+	BRepBuilderAPI_MakeSolid brep_solid(TopoDS::Shell(obj)); // Now some unclear foo that took a bit to find 
+																													 // Yes the shape will show type three as a shell 																													 // but you have to wrap it TopoDS::shell() anyway :| 	
+	aShape = brep_solid.Solid();
+
+	// Now becomes necessary it would seem to generate a new triangulation. Okay fine. 
+
+	// Tolerances 
+	Standard_Real tolerance = 0.25;
+  Standard_Real angular_tolerance = 0.5;
+  Standard_Real minTriangleSize = Precision::Confusion();
+
+	// Set the tolerances
+	BRepMesh_FastDiscret::Parameters m_MeshParams;
+  m_MeshParams.ControlSurfaceDeflection = Standard_True; 
+  m_MeshParams.Deflection = tolerance;
+  m_MeshParams.MinSize = minTriangleSize;
+  m_MeshParams.InternalVerticesMode = Standard_False;
+  m_MeshParams.Relative=Standard_False;
+  m_MeshParams.Angle = angular_tolerance;
+
+	// Incremental meshes from shapes 
+	BRepMesh_IncrementalMesh ( aShape , m_MeshParams );
+
+	return err;
+}
+
 // -------------------------------------------------------------------------------------------------------------
-// Build a CGAL surface. Based on the http://jamesgregson.blogspot.com.au/2012/05/example-code-for-building.html 
+// Build a CGAL surface given coords and tris. 
+// Based on the http://jamesgregson.blogspot.com.au/2012/05/example-code-for-building.html 
 // -------------------------------------------------------------------------------------------------------------
 template<class HDS>
 class surface_builder : public CGAL::Modifier_base<HDS> {
@@ -209,13 +368,13 @@ public:
   		typedef typename HDS::Vertex   Vertex;
       typedef typename Vertex::Point Point;
       CGAL::Polyhedron_incremental_builder_3<HDS> B( hds, true);
-      B.begin_surface( coords.size()/3, tris.size()/3 );
+      B.begin_surface( coords.size(), tris.size() );
   		for( int i=0; i<(int)coords.size(); i+=3 ){
   			B.add_vertex( Point( coords[i+0], coords[i+1], coords[i+2] ) );
   		}
   		for( int i=0; i<(int)tris.size(); i+=3 ){
    			B.begin_facet();
-	  				B.add_vertex_to_facet( tris[i+0] );
+	  			B.add_vertex_to_facet( tris[i+0] );
    				B.add_vertex_to_facet( tris[i+1] );
    				B.add_vertex_to_facet( tris[i+2] );
    			B.end_facet();
@@ -226,112 +385,43 @@ public:
 
 // --------------------------------------------------------------
 // Convert a BREP in to a CGAL surface. Sure a more optimal way 
-// exists to do this but for now will get the job done. 
-// --------------------------------------------------------------
-/*template <typename Polyhedron> bool BrepCgal::AlternateBrepToCgal(TopoDS_Shape& aShape, Polyhedron& p) { 
-	std::vector<Kernel::Point_3> points; 
-  std::vector<std::vector<std::size_t>> polygons;
-	// complete winding of points in triangle order. Every 9 values is a face. 
-	for (TopExp_Explorer exp (aShape, TopAbs_FACE); exp.More(); exp.Next())
-	{
-		TriangleAccessor aTool (TopoDS::Face (exp.Current()));
-		for (int iTri = 1; iTri <= aTool.NbTriangles(); iTri++)
-		{
-		 gp_Vec aNorm;
-	   gp_Pnt aPnt1, aPnt2, aPnt3;
-		 aTool.GetTriangle (iTri, aNorm, aPnt1, aPnt2, aPnt3);
-			points.push_back(	Kernel::Point_3( aPnt1.X() , aPnt1.Y() , aPnt1.Z() ) ); 
-			points.push_back(	Kernel::Point_3( aPnt2.X() , aPnt2.Y() , aPnt2.Z() ) ); 
-			points.push_back(	Kernel::Point_3( aPnt3.X() , aPnt3.Y() , aPnt3.Z() ) ); 		
-		}
-	}
-	for ( std::size_t i = 0; i < points.size(); i+=3 ) { 
-		std::vector<std::size_t> facet(3);
-		facet[0] = i+0; facet[1] = i+1; facet[2] = i+2; 
-		polygons.push_back( facet ); 	
-	}		
-	CGAL::Polygon_mesh_processing::orient_polygon_soup(points, polygons );
-  CGAL::Polygon_mesh_processing::polygon_soup_to_polygon_mesh(points, polygons, p);
-	if (CGAL::is_closed(p) && (!CGAL::Polygon_mesh_processing::is_outward_oriented(p))) { 
-  	CGAL::Polygon_mesh_processing::reverse_face_orientations(p);
-	}
-	return true; 
-}*/
-
-// --------------------------------------------------------------
-// Convert a BREP in to a CGAL surface. Sure a more optimal way 
-// exists to do this but for now will get the job done. 
+// exists to do this. Classic issues with bad floating point 
+// and convexity. 
 // --------------------------------------------------------------
 template <typename Polyhedron> bool BrepCgal::BrepToCgal(TopoDS_Shape& aShape, Polyhedron& p) { 
 	std::vector<double> points;   
 	std::vector<double> nPoints;   
-	std::vector<int> nFaces; 
-// complete winding of points in triangle order. Every 9 values is a face. 
-	for (TopExp_Explorer exp (aShape, TopAbs_FACE); exp.More(); exp.Next())
+	std::vector<int> nFaces;
+	typedef typename Polyhedron::Point_3  Point3;
+	// complete winding of points in triangle order. Every 9 values is a face. 
+	for (TopExp_Explorer exp (aShape , TopAbs_FACE); exp.More(); exp.Next())
 	{
-		TriangleAccessor aTool (TopoDS::Face (exp.Current()));
+		TopoDS_Face face = TopoDS::Face (exp.Current());
+		TriangleAccessor aTool (face);
 		for (int iTri = 1; iTri <= aTool.NbTriangles(); iTri++)
 		{
 		 gp_Vec aNorm;
 	   gp_Pnt aPnt1, aPnt2, aPnt3;
 		 aTool.GetTriangle (iTri, aNorm, aPnt1, aPnt2, aPnt3);		
-		 points.push_back( aPnt1.X() ); points.push_back( aPnt1.Y() ); points.push_back( aPnt1.Z() );
-		 points.push_back( aPnt2.X() ); points.push_back( aPnt2.Y() ); points.push_back( aPnt2.Z() );
-		 points.push_back( aPnt3.X() ); points.push_back( aPnt3.Y() ); points.push_back( aPnt3.Z() ); 			
-		}
-	}
-	// Now convert to reduced index form for CGAL. Convexity problems if we repeat vectors.  
-	for ( int i = 0; i < points.size(); i+=9 ) { // complete face is always [x,y,z,x,y,z,x,y,z]  
-		// Grab our face set fA,fB,fC 
-		double xa = points[i+0]; double ya = points[i+1]; double za = points[i+2]; 
-		double xb = points[i+3]; double yb = points[i+4]; double zb = points[i+5];
-		double xc = points[i+6]; double yc = points[i+7]; double zc = points[i+8];
-		int fA = -1; int fB = -1; int fC = -1; 
-		for ( int j = 0; j < nPoints.size(); j+=3 ) { // Have we used the same [x,y,z] before 	 
-			double xj = nPoints[j+0]; double yj = nPoints[j+1]; double zj = nPoints[j+2]; 
-			if ( xa == xj && ya == yj && za == zj ) fA = 0; 
-			if ( xb == xj && yb == yj && zb == zj ) fB = 0; 
-			if ( xc == xj && yc == yj && zc == zj ) fC = 0; 			
-		}
-		// If we did not find it in nPoints then add it to nPoints 
-		if ( fA == -1 ) { nPoints.push_back(xa); nPoints.push_back(ya); nPoints.push_back(za); } 
-		if ( fB == -1 ) { nPoints.push_back(xb); nPoints.push_back(yb); nPoints.push_back(zb); } 
-		if ( fC == -1 ) { nPoints.push_back(xc); nPoints.push_back(yc); nPoints.push_back(zc); } 
-	}
-	// Now convert to reduced index form for CGAL. Convexity problems if we repeat vectors.  
-	for ( int i = 0; i < points.size(); i+=9 ) { // complete face is always [x,y,z,x,y,z,x,y,z]  
-		// Grab our face set nfA,nfB,nfC 
-		double xa = points[i+0]; double ya = points[i+1]; double za = points[i+2]; 
-		double xb = points[i+3]; double yb = points[i+4]; double zb = points[i+5];
-		double xc = points[i+6]; double yc = points[i+7]; double zc = points[i+8];
-		int nfA = -1; int nfB = -1; int nfC = -1; 
-		for ( int j = 0; j < nPoints.size(); j+=3 ) { // Have we used the same [x,y,z] before 	 
-			double xj = nPoints[j+0]; double yj = nPoints[j+1]; double zj = nPoints[j+2]; 
-			if ( xa == xj && ya == yj && za == zj ) nfA = j/3; 
-			if ( xb == xj && yb == yj && zb == zj ) nfB = j/3; 
-			if ( xc == xj && yc == yj && zc == zj ) nfC = j/3; 			
-		}	
-		if ( nfA != -1 && nfB != -1 && nfC != -1 ) {  // Push out the reduced index 
-			if ( nfA == nfB || nfA == nfC || nfB == nfA || nfB == nfC ) { 
-				std::cout << "Self intersecting face because floating point tells lies! " << nfA << " " << nfB << " " << nfC << std::endl; 
-			} else { 
-				nFaces.push_back(nfA); nFaces.push_back(nfB); nFaces.push_back(nfC); 
+		 Point3 a(aPnt1.X(),aPnt1.Y(),aPnt1.Z()); 
+		 Point3 b(aPnt2.X(),aPnt2.Y(),aPnt2.Z()); 
+		 Point3 c(aPnt3.X(),aPnt3.Y(),aPnt3.Z()); 
+		  if ( CGAL::squared_distance(a, b) != 0.0 ) { 
+		 		if ( CGAL::squared_distance(b, c) != 0.0 ) { 
+		 			if ( CGAL::squared_distance(c, a) != 0.0 ) { 
+						 points.push_back( aPnt1.X() ); points.push_back( aPnt1.Y() ); points.push_back( aPnt1.Z() );
+						 points.push_back( aPnt2.X() ); points.push_back( aPnt2.Y() ); points.push_back( aPnt2.Z() );
+		         points.push_back( aPnt3.X() ); points.push_back( aPnt3.Y() ); points.push_back( aPnt3.Z() ); 	
+					}	
+				}
 			}
 		}
-		else { 
-			std:cout << "Failed to find reindexed vector in BrepCGAL conversion" << std::endl; 
-		}
 	}
-
-	//for ( int i = 0; i < nPoints.size(); i+=3 ) {
-	//	output << "v " << nPoints[i+0] << " " << nPoints[i+1] << " " << nPoints[i+2] << "\n"; 
-	//}  
-	//for ( int j = 0; j < nFaces.size(); j+=3 ) { 
-	//	output << "f " << nFaces[j+0]+1 << " " << nFaces[j+1]+1 << " " << nFaces[j+2]+1 << "\n"; 
-	//}*/
-
-  surface_builder<HalfedgeDS> builder( nPoints, nFaces );
-  p.delegate( builder ); 
+	for ( int i = 0; i < points.size()/3; i+=3 ) { 
+		nFaces.push_back( i + 0 ); nFaces.push_back( i + 1 ); nFaces.push_back( i + 2 );
+	}
+	surface_builder<HalfedgeDS> builder( points, nFaces );
+	p.delegate( builder ); 
 	return true; 
 }
 
@@ -344,12 +434,12 @@ bool is_weakly_convex(Polyhedron const& p) {
   	typename Polyhedron::Plane_3 p(i->opposite()->vertex()->point(), i->vertex()->point(), i->next()->vertex()->point());
     if (p.has_on_positive_side(i->opposite()->next()->vertex()->point()) &&
        CGAL::squared_distance(p, i->opposite()->next()->vertex()->point()) > 1e-8) {
-				std::cout << "Was false" << std::endl; 
-     		return false;
+				std::cout << "Was Weakly Convex" << std::endl; 
+     		return true;
  		 }
 	}
-  std::cout << "Was true" << std::endl; 
-  return true; 
+  std::cout << "Was Not Weakly Convex" << std::endl; 
+  return false; 
 }
 
 
@@ -358,75 +448,143 @@ bool is_weakly_convex(Polyhedron const& p) {
 // to CGAL Polyhedrons. 
 // -------------------------------------------------------------------------
  
-bool BrepCgal::minkowski( TopoDS_Shape& aShape , TopoDS_Shape& bShape ) {
+bool BrepCgal::minkowski( TopoDS_Shape &aShape , TopoDS_Shape &bShape , TopoDS_Shape &rShape ) {
 	
 	Polyhedron aMesh;
 	BrepToCgal(aShape,aMesh); 
-	//std::ofstream out("a.off"); out << aMesh; out.close(); //createPolySetFromPolyhedron( p ); 
-	//Nef_polyhedron A(aMesh);
-	//if (A.is_convex()) { 
-	//	std::cout << "So it passed" << std::endl; 
-	//}
+	CGAL::Polygon_mesh_processing::stitch_borders(aMesh);
+	Nef_polyhedron A(aMesh);
 
-	//Polyhedron bMesh;
-	//BrepToCgal(bShape,bMesh); 
-	//std::ofstream out("b.off"); out << bMesh; out.close(); //createPolySetFromPolyhedron( p ); 
+	Polyhedron bMesh;
+	BrepToCgal(bShape,bMesh);
+ 	CGAL::Polygon_mesh_processing::stitch_borders(bMesh);
+	Nef_polyhedron B(bMesh);
 
-	// Incrementally fill the holes
-  /*unsigned int nb_holes = 0;
-  BOOST_FOREACH(Halfedge_handle h, halfedges(bMesh))
-  {
-    if(h->is_border())
-    {
-      std::vector<Facet_handle>  patch_facets;
-      std::vector<Vertex_handle> patch_vertices;
-      bool success = CGAL::cpp11::get<0>(
-        CGAL::Polygon_mesh_processing::triangulate_refine_and_fair_hole(
-                  bMesh,
-                  h,
-                  std::back_inserter(patch_facets),
-                  std::back_inserter(patch_vertices),
-     CGAL::Polygon_mesh_processing::parameters::vertex_point_map(get(CGAL::vertex_point, bMesh)).
-                  geom_traits(Kernel())) );
-      std::cout << " Number of facets in constructed patch: " << patch_facets.size() << std::endl;
-      std::cout << " Number of vertices in constructed patch: " << patch_vertices.size() << std::endl;
-      std::cout << " Fairing : " << (success ? "succeeded" : "failed") << std::endl;
-      ++nb_holes;
-    }
-  }*/
+	typedef CGAL::Epick Hull_kernel;
 
-	//Nef_polyhedron B(bMesh);
-	//if (B.is_convex()) { 
-	//	std::cout << "So it passed" << std::endl; 
-	//}
+ std::list<Polyhedron> P[2];
+ std::list<CGAL::Polyhedron_3<Hull_kernel> > result_parts;	
 
-	/*std::string filename("cube.off"); 
-  std::ifstream input(filename.c_str());
-  if (!input)
-  {
-    std::cerr << "Cannot open file " << std::endl;
-    return 1;
-  }
-  std::vector<Kernel::Point_3> points;
-  std::vector< std::vector<std::size_t> > polygons;
-  if (!CGAL::read_OFF(input, points, polygons))
-  {
-    std::cerr << "Error parsing the OFF file " << std::endl;
-    return 1;
-  }
-
-	for ( std::size_t i = 0; i < polygons.size(); i++ ) { 
-		std::cout << polygons[i][0]+1 << " " << polygons[i][1]+1 << " " << polygons[i][2]+1 << std::endl; 
+ if ( (A.is_convex()) || (is_weakly_convex(aMesh))) {
+	std::cout << "Minkowski: child A is convex" << std::endl; 
+	P[0].push_back(aMesh);
+ }
+ else { 
+	std::cout << "Minkowski: child A was not convex doing decomposition" << std::endl; 
+	Nef_polyhedron decomposed_nef;
+	CGAL::convex_decomposition_3(A);
+	Nef_polyhedron::Volume_const_iterator ci = ++decomposed_nef.volumes_begin();
+	for(; ci != decomposed_nef.volumes_end(); ++ci) {
+		if(ci->mark()) {
+			Polyhedron poly;
+			decomposed_nef.convert_inner_shell_to_polyhedron(ci->shells_begin(), poly);
+			P[0].push_back(poly);
+		}
 	}
+ } 
+ std::cout << "Minkowski: decomposed into " << P[0].size() << std::endl;
 
-  CGAL::Polygon_mesh_processing::orient_polygon_soup(points, polygons);
-  Polyhedron mesh;
-  CGAL::Polygon_mesh_processing::polygon_soup_to_polygon_mesh(points, polygons, mesh);
-  if (CGAL::is_closed(mesh) && (!CGAL::Polygon_mesh_processing::is_outward_oriented(mesh)))
-    CGAL::Polygon_mesh_processing::reverse_face_orientations(mesh);*/
+ if ((B.is_convex()) || (is_weakly_convex(bMesh))) {
+		std::cout << "Minkowski: child B is convex" << std::endl; 
+	P[1].push_back(bMesh);
+ }
+ else { 
+	std::cout << "Minkowski: child B was not convex doing decomposition" << std::endl; 
+	Nef_polyhedron decomposed_nef;
+	CGAL::convex_decomposition_3(B);
+	Nef_polyhedron::Volume_const_iterator ci = ++decomposed_nef.volumes_begin();
+	for(; ci != decomposed_nef.volumes_end(); ++ci) {
+		if(ci->mark()) {
+			Polyhedron poly;
+			decomposed_nef.convert_inner_shell_to_polyhedron(ci->shells_begin(), poly);
+			P[1].push_back(poly);
+		}
+	}
+ } 
+ std::cout << "Minkowski: decomposed into " << P[1].size() << std::endl;
 
-	
-   return 0;
+ std::vector<Hull_kernel::Point_3> points[2];
+ std::vector<Hull_kernel::Point_3> minkowski_points;
+
+ for (size_t i = 0; i < P[0].size(); i++) {
+ 	for (size_t j = 0; j < P[1].size(); j++) {
+		points[0].clear();
+		points[1].clear();
+		for (int k = 0; k < 2; k++) {
+			std::list<Polyhedron>::iterator it = P[k].begin();
+			std::advance(it, k==0?i:j);
+			Polyhedron const& poly = *it;
+			points[k].reserve(poly.size_of_vertices());
+			for (Polyhedron::Vertex_const_iterator pi = poly.vertices_begin(); pi != poly.vertices_end(); ++pi) {
+				Polyhedron::Point_3 const& p = pi->point();
+				points[k].push_back(Hull_kernel::Point_3(to_double(p[0]),to_double(p[1]),to_double(p[2])));
+			}
+		}
+		minkowski_points.clear();
+		minkowski_points.reserve(points[0].size() * points[1].size());
+		for (int i = 0; i < points[0].size(); i++) {
+			for (int j = 0; j < points[1].size(); j++) {
+				minkowski_points.push_back(points[0][i]+(points[1][j]-CGAL::ORIGIN));
+			}
+		}
+		if (minkowski_points.size() <= 3) { continue;}
+		CGAL::Polyhedron_3<Hull_kernel> result;
+		CGAL::convex_hull_3(minkowski_points.begin(), minkowski_points.end(), result);
+		std::vector<Hull_kernel::Point_3> strict_points;
+		strict_points.reserve(minkowski_points.size());
+		for (CGAL::Polyhedron_3<Hull_kernel>::Vertex_iterator i = result.vertices_begin(); i != result.vertices_end(); ++i) {
+			Hull_kernel::Point_3 const& p = i->point();
+			CGAL::Polyhedron_3<Hull_kernel>::Vertex::Halfedge_handle h,e;
+			h = i->halfedge();
+			e = h;
+			bool collinear = false;
+			bool coplanar = true;
+			do {
+				Hull_kernel::Point_3 const& q = h->opposite()->vertex()->point();
+				if (coplanar && !CGAL::coplanar(p,q,
+					h->next_on_vertex()->opposite()->vertex()->point(),
+					h->next_on_vertex()->next_on_vertex()->opposite()->vertex()->point())) {
+					coplanar = false;
+				}
+				for (CGAL::Polyhedron_3<Hull_kernel>::Vertex::Halfedge_handle j = h->next_on_vertex();
+					j != h && !collinear && ! coplanar;
+					j = j->next_on_vertex()) {
+						Hull_kernel::Point_3 const& r = j->opposite()->vertex()->point();
+						if (CGAL::collinear(p,q,r)) { collinear = true; }
+					}
+					h = h->next_on_vertex();
+				} 
+				while (h != e && !collinear);
+					if (!collinear && !coplanar) strict_points.push_back(p);
+				}
+				result.clear();
+				CGAL::convex_hull_3(strict_points.begin(), strict_points.end(), result);
+				result_parts.push_back(result);
+		}
+ 	}
+
+	for (std::list<CGAL::Polyhedron_3<Hull_kernel> >::iterator i = result_parts.begin(); i != result_parts.end(); ++i) {
+		//createPolySetFromPolyhedron( *i );
+ 		//std::ofstream file;
+ 		//file.open ("test.obj");
+ 	  //print_polyhedron_wavefront(file,*i);
+ 		//file.close(); 
+		createBrepFromPolyhedron( *i , rShape ); 
+  }
+
+	//ShapeAnalysis_ShapeContents cont;
+  //cont.Clear();
+  //cont.Perform(rShape);
+  //std::cout  << "OCC CONTENTS" << endl;
+  //std::cout  << "============" << endl;
+  //std::cout  << "SOLIDS   : " << cont.NbSolids() << endl;
+  //std::cout  << "SHELLS   : " << cont.NbShells() << endl;
+  //std::cout  << "FACES    : " << cont.NbFaces() << endl;
+  //std::cout  << "WIRES    : " << cont.NbWires() << endl;
+  //std::cout  << "EDGES    : " << cont.NbEdges() << endl;
+  //std::cout  << "VERTICES : " << cont.NbVertices() << endl;
+
+  return 0;
 	
 
 }

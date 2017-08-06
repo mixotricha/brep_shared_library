@@ -1,0 +1,143 @@
+//TopoDS_Shape shape_a = Read_BREP(box(-12.5,-12.5,-12.5,50.0,50.0,50.0)); 
+
+	 //BRepMesh_FastDiscret::Parameters m_MeshParams;
+  //m_MeshParams.Deflection = 1e-3; //This one is important. Higher values are quicker but less accurate. Use 1e-3 for fast preview, 1e-5 or smaller for accurracy 
+    //m_MeshParams.Angle = 0.5;
+    //m_MeshParams.Relative = Standard_True;
+    //m_MeshParams.InParallel = Standard_True;
+    //aMeshParams.MinSize = aMinSize; //?? default is Standard_True
+    //aMeshParams.InternalVerticesMode = isIntVertices; //!!jw?? default is Standard_True
+    //aMeshParams.ControlSurfaceDeflection = isControlSurDef; //?? default is Standard_True
+    //m_MeshParams.AdaptiveMin = Standard_True;
+
+
+	//const Standard_Real radius = 100.0; 
+	//const Standard_Real x=0.0; 
+	//const Standard_Real y=0.0;
+  //const Standard_Real z=0.0;
+
+	//gp_Ax2 sphere_origin = gp_Ax2(gp_Pnt(x,y,z), gp_Dir(0,0,1));
+	//TopoDS_Shape sphere = BRepPrimAPI_MakeSphere(sphere_origin, sphere_radius );
+	//BRepMesh_IncrementalMesh(sphere, m_MeshParams);
+
+	 //const Standard_Real aRadius = 10.0; 
+   //const Standard_Real aHeight = 25.0; 
+   //BRepBuilderAPI_MakeCylinder aCylinder(aRadius, aHeight); 
+
+	 
+
+	//Standard_Real R = 1000.0, ang = 3.14159265359/2, a1 = -3.14159265359/2.3,  a2 = 3.14159265359/4; 
+
+  //BRepPrimAPI_MakeSphere aCylinder ( R );
+		//BRepPrimAPI_MakeSphere aCylinder(sphere_origin, sphere_radius );
+	 //BRepPrimAPI_MakeCylinder aCylinder(aRadius, aHeight);
+   //const Standard_Real aLinearDeflection   = 0.01;
+   //const Standard_Real anAngularDeflection = 0.5;
+   //BRepMesh_IncrementalMesh (aCylinder, 0.9); 
+	//aLinearDeflection, Standard_False, anAngularDeflection);
+	 //std::cout << Write_BREP(aCylinder) << std::endl; 
+
+	//std::cout << "\t Number of vertices  :\t" << bMesh.size_of_vertices() << std::endl;
+  //std::cout << "\t Number of halfedges :\t" << bMesh.size_of_halfedges() << std::endl;
+  //std::cout << "\t Number of facets    :\t" << bMesh.size_of_facets() << std::endl;
+	
+	 //BOOST_FOREACH(boost::graph_traits<Polyhedron>::face_descriptor fit, faces(bMesh))
+    //if (next(next(halfedge(fit, bMesh), bMesh), bMesh)
+     //   !=   prev(halfedge(fit, bMesh), bMesh))
+     // std::cerr << "Error: non-triangular face left in mesh." << std::endl;
+
+	//if (CGAL::is_closed(bMesh)) { 
+	//	std::cout << "\t Is Closed" << std::endl; 
+	//	if (!CGAL::Polygon_mesh_processing::is_outward_oriented(bMesh)) {
+	//		std::cout << "\t Was Inverted" << std::endl; 
+  //  	CGAL::Polygon_mesh_processing::reverse_face_orientations(bMesh);
+	//	}
+	//}
+
+	//std::ofstream out("b.off"); out << bMesh; out.close();  
+
+	//createPolySetFromPolyhedron( bMesh ); 
+
+// --------------------------------------------------------------
+// This in theory should be a nicer way to turn a BREP in to a CGAL surface. 
+// However for whatever reason it does not work. 
+// --------------------------------------------------------------
+/*template <typename Polyhedron> bool BrepCgal::AlternateBrepToCgal(TopoDS_Shape& aShape, Polyhedron& p) { 
+	std::vector<Kernel::Point_3> points; 
+  std::vector<std::vector<std::size_t>> polygons;
+	// complete winding of points in triangle order. Every 9 values is a face. 
+	for (TopExp_Explorer exp (aShape, TopAbs_FACE); exp.More(); exp.Next())
+	{
+		TriangleAccessor aTool (TopoDS::Face (exp.Current()));
+		for (int iTri = 1; iTri <= aTool.NbTriangles(); iTri++)
+		{
+		 gp_Vec aNorm;
+	   gp_Pnt aPnt1, aPnt2, aPnt3;
+		 aTool.GetTriangle (iTri, aNorm, aPnt1, aPnt2, aPnt3);
+			points.push_back(	Kernel::Point_3( aPnt1.X() , aPnt1.Y() , aPnt1.Z() ) ); 
+			points.push_back(	Kernel::Point_3( aPnt2.X() , aPnt2.Y() , aPnt2.Z() ) ); 
+			points.push_back(	Kernel::Point_3( aPnt3.X() , aPnt3.Y() , aPnt3.Z() ) ); 		
+		}
+	}
+	for ( std::size_t i = 0; i < points.size(); i+=3 ) { 
+		std::vector<std::size_t> facet(3);
+		facet[0] = i+0; facet[1] = i+1; facet[2] = i+2; 
+		polygons.push_back( facet ); 	
+	}		
+	CGAL::Polygon_mesh_processing::orient_polygon_soup(points, polygons );
+  CGAL::Polygon_mesh_processing::polygon_soup_to_polygon_mesh(points, polygons, p);
+	if (CGAL::is_closed(p) && (!CGAL::Polygon_mesh_processing::is_outward_oriented(p))) { 
+  	CGAL::Polygon_mesh_processing::reverse_face_orientations(p);
+	}
+	return true; 
+}*/
+
+
+	/*
+	// Now convert to reduced index form for CGAL. Convexity problems if we repeat vectors.  
+	for ( int i = 0; i < points.size(); i+=9 ) { // complete face is always [x,y,z,x,y,z,x,y,z]  
+		// Grab our face set fA,fB,fC 
+		double xa = points[i+0]; double ya = points[i+1]; double za = points[i+2]; 
+		double xb = points[i+3]; double yb = points[i+4]; double zb = points[i+5];
+		double xc = points[i+6]; double yc = points[i+7]; double zc = points[i+8];
+		int fA = -1; int fB = -1; int fC = -1; 
+		for ( int j = 0; j < nPoints.size(); j+=3 ) { // Have we used the same [x,y,z] before 	 
+			double xj = nPoints[j+0]; double yj = nPoints[j+1]; double zj = nPoints[j+2]; 
+			if ( xa == xj && ya == yj && za == zj ) fA = 0; 
+			if ( xb == xj && yb == yj && zb == zj ) fB = 0; 
+			if ( xc == xj && yc == yj && zc == zj ) fC = 0; 			
+		}
+		// If we did not find it in nPoints then add it to nPoints 
+		if ( fA == -1 ) { nPoints.push_back(xa); nPoints.push_back(ya); nPoints.push_back(za); } 
+		if ( fB == -1 ) { nPoints.push_back(xb); nPoints.push_back(yb); nPoints.push_back(zb); } 
+		if ( fC == -1 ) { nPoints.push_back(xc); nPoints.push_back(yc); nPoints.push_back(zc); } 
+	}
+	// Now convert to reduced index form for CGAL. Convexity problems if we repeat vectors.  
+	for ( int i = 0; i < points.size(); i+=9 ) { // complete face is always [x,y,z,x,y,z,x,y,z]  
+		// Grab our face set nfA,nfB,nfC 
+		double xa = points[i+0]; double ya = points[i+1]; double za = points[i+2]; 
+		double xb = points[i+3]; double yb = points[i+4]; double zb = points[i+5];
+		double xc = points[i+6]; double yc = points[i+7]; double zc = points[i+8];
+		int nfA = -1; int nfB = -1; int nfC = -1; 
+		for ( int j = 0; j < nPoints.size(); j+=3 ) { // Have we used the same [x,y,z] before 	 
+			double xj = nPoints[j+0]; double yj = nPoints[j+1]; double zj = nPoints[j+2]; 
+			if ( xa == xj && ya == yj && za == zj ) nfA = j/3; 
+			if ( xb == xj && yb == yj && zb == zj ) nfB = j/3; 
+			if ( xc == xj && yc == yj && zc == zj ) nfC = j/3; 			
+		}	
+		if ( nfA != -1 && nfB != -1 && nfC != -1 ) {  // Push out the reduced index 
+			if ( nfA == nfB || nfA == nfC || nfB == nfA || nfB == nfC ) { 
+				std::cout << "Self intersecting face because floating point tells lies! " << nfA << " " << nfB << " " << nfC << std::endl; 
+			} else { 
+				nFaces.push_back(nfA); nFaces.push_back(nfB); nFaces.push_back(nfC); 
+			}
+		}
+		else { 
+			std:cout << "Failed to find reindexed vector in BrepCGAL conversion" << std::endl; 
+		}
+	}*/
+
+
+
+
+
