@@ -328,8 +328,9 @@ char *difference(char *a,char *b) {
 	//std::cout << "Generating Difference" << std::endl; 
 	TopoDS_Shape shape_a = Read_BREP(a);
 	TopoDS_Shape shape_b = Read_BREP(b);
-	TopoDS_Shape boolean_result;
-	boolean_result = BRepAlgoAPI_Cut( shape_a ,  shape_b ).Shape();
+
+	TopoDS_Shape boolean_result = BRepAlgoAPI_Cut( shape_a ,  shape_b ).Shape();
+
 	char *new_buf = strdup((char*)Write_BREP(boolean_result).c_str());	
 	return new_buf; 
 }
@@ -339,8 +340,9 @@ char *uni(char *a,char *b) {
 	//std::cout << "Generating Union" << std::endl; 
 	TopoDS_Shape shape_a = Read_BREP(a);
 	TopoDS_Shape shape_b = Read_BREP(b);
-	TopoDS_Shape boolean_result; 
-	boolean_result = BRepAlgoAPI_Fuse( shape_a ,  shape_b ).Shape();	
+
+	TopoDS_Shape boolean_result = BRepAlgoAPI_Fuse( shape_a ,  shape_b ).Shape();
+		
 	char *new_buf = strdup((char*)Write_BREP(boolean_result).c_str());	
 	return new_buf; 
 }
@@ -383,15 +385,23 @@ char *minkowski(char *a,char *b) {
 	return new_buf; 
 }
 
-int main() { 
-	std::cout <<
-  uni(
-    minkowski(
-        box(-25.0,-25.0,-25.0,50.0,50.0,50.0), 
-        sphere(25.0, 0.0 , 0.0 , 0.0)
-    ),
-		translate( 0.0 , 0.0, -100 , cylinder( 20.0 , 200.0 , 0.0 ))
-	);
- return 0;  
-}
+//int main() { 
+//	std::cout <<   
+	//difference(
+  //  minkowski(
+  //      box(-25.0,-25.0,-25.0,50.0,50.0,50.0), 
+  //      sphere(25.0, 0.0 , 0.0 , 0.0)
+  //  ),
+	//	translate( 0.0 , 0.0 , 50.0 , sphere(15.0,0.0,0.0,0.0))
+	//);
+//	uni(
+ //   minkowski(
+   //     box(-25.0,-25.0,-25.0,50.0,50.0,50.0), 
+   //     sphere(25.0, 0.0 , 0.0 , 0.0)
+   // ),
+	//	translate( 0.0 , 0.0 , -100.0 , cylinder(25.0,200.0,0.0))
+//	);
+
+// return 0;  
+//}
 

@@ -6,7 +6,7 @@ CXXFLAGS = -O3 -std=gnu++11 -frounding-math -m64 -shared -fPIC -DCGAL_EIGEN3_ENA
 TARGET=brep.so
 
 
-#CXXFLAGS=-O3 -std=gnu++11 -frounding-math -m64 -fPIC -DCGAL_EIGEN3_ENABLED -DCGAL_USE_GMP -DCGAL_USE_MPFR 
+#CXXFLAGS= -std=gnu++11 -frounding-math -m64 -fPIC -DCGAL_EIGEN3_ENABLED -DCGAL_USE_GMP -DCGAL_USE_MPFR 
 #TARGET=brep
 
 
@@ -16,20 +16,18 @@ OC_LIB=-lTKOpenGl -lTKernel -lTKGeomBase -lTKTopAlgo -lTKOffset -lTKBool -lTKPri
 
 BOOST_LIBS=-lboost_iostreams -lboost_system -lboost_chrono -lboost_date_time -lboost_atomic -lboost_thread
 
-BREPCGAL_INCL_DIR=BrepCgal
-
 CGAL_INCL_DIR=/usr/local/include/CGAL
 CGAL_LIB_DIR =/usr/local/lib
 CGAL_LIB=-lGGAL 
 
-INCLUDES       = -I. -I/usr/local/include/eigen3 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I$(BREPCGAL_INCL_DIR) -I$(OC_INCL_DIR) 
+INCLUDES       = -I. -I./src -I/usr/local/include/eigen3 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I$(OC_INCL_DIR) 
 	  
 LIBS       = -L/usr/local/lib -ldl -lm -lz -lHalf -lmpfr -lgmp -lpthread -Wl,-rpath,$(OC_LIB_DIR) -L$(OC_LIB_DIR) $(OC_LIB) -Wl,-rpath,$(CGAL_LIB_DIR) -L$(CGAL_LIB_DIR) -lCGAL $(BOOST_LIBS) 
 		
 first: all
 
 all:	
-	$(CXX) ./BrepCgal/BrepCgal_Converter.cpp brep.cpp $(CXXFLAGS) -o $(TARGET) $(DEFINES) $(INCLUDES) $(LIBS) 
+	$(CXX) ./src/BrepCgal.cpp ./src/brep.cpp $(CXXFLAGS) -o $(TARGET) $(DEFINES) $(INCLUDES) $(LIBS) 
 
 
 

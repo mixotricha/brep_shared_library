@@ -1,3 +1,0 @@
-/home/mixotricha/workspace/brep_shared_library/cgal/CMakeFiles/rebuild_cache.dir
-/home/mixotricha/workspace/brep_shared_library/cgal/CMakeFiles/edit_cache.dir
-/home/mixotricha/workspace/brep_shared_library/cgal/CMakeFiles/list_of_convex_parts.dir

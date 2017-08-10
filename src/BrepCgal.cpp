@@ -261,21 +261,27 @@ template <typename Polyhedron> bool createPolySetFromPolyhedron(const Polyhedron
 // ---------------------------------------------------------------------------------
 template <typename Polyhedron> bool createBrepFromPolyhedron(const Polyhedron &p,TopoDS_Shape &aShape) {
 
+	if (CGAL::Polygon_mesh_processing::is_outward_oriented(p)) {
+		std::cout << "correct" << std::endl; 
+	}
+
 	int i = 0; 
 	double xa,ya,za,xb,yb,zb,xc,yc,zc; 
 	//std::stringstream output;
 	bool err = false;
 
-	// BREP
-	BRepOffsetAPI_Sewing sew;
-	Standard_Integer a,b; 
-	Standard_Integer width = 0; 
-	//Standard_Real x1, y1, z1;
-	//Standard_Real x2, y2, z2; 
-	TopoDS_Wire wire;		
-	BRep_Builder builder;
-	std::vector<TopoDS_Vertex> foo; 
+	gp_XYZ p1, p2, p3;
+  TopoDS_Vertex Vertex1, Vertex2, Vertex3;
+  TopoDS_Face AktFace;
+  TopoDS_Wire AktWire;
+ 
+  BRepBuilderAPI_Sewing aSewingTool;  
+  aSewingTool.Init(1.0e-06,Standard_True);
 
+	TopoDS_Compound aComp;
+  BRep_Builder BuildTool;
+  BuildTool.MakeCompound( aComp );
+	
 	// CGAL
 	typedef typename Polyhedron::Vertex                                 Vertex;
 	typedef typename Polyhedron::Vertex_const_iterator                  VCI;
@@ -302,54 +308,75 @@ template <typename Polyhedron> bool createBrepFromPolyhedron(const Polyhedron &p
 				xc = CGAL::to_double(v.point().x());
 				yc = CGAL::to_double(v.point().y());
 				zc = CGAL::to_double(v.point().z());
-				foo.push_back( BRepBuilderAPI_MakeVertex(gp_Pnt(xa,ya,za)) ); 
-				foo.push_back( BRepBuilderAPI_MakeVertex(gp_Pnt(xb,yb,zb)) ); 
-				foo.push_back( BRepBuilderAPI_MakeVertex(gp_Pnt(xc,yc,zc)) ); 	
+				p1.SetCoord(xa,ya,za);
+	      p2.SetCoord(xb,yb,zb);
+	      p3.SetCoord(xc,yc,zc);
+				Vertex1 = BRepBuilderAPI_MakeVertex(p1);
+        Vertex2 = BRepBuilderAPI_MakeVertex(p2);
+        Vertex3 = BRepBuilderAPI_MakeVertex(p3);
+				AktWire = BRepBuilderAPI_MakePolygon( Vertex1, Vertex2, Vertex3, Standard_True);
+				if( !AktWire.IsNull()) {
+          AktFace = BRepBuilderAPI_MakeFace( AktWire);
+          if(!AktFace.IsNull()) {
+						BuildTool.Add( aComp, AktFace );
+					}
+        }  
 			}
 			i++; 
 			if ( i == 3 ) i = 0;  
 		} while (hc != hc_end);
 	}
 
-	for ( i = 0; i < foo.size(); i+=3 ) { 
-		builder.MakeWire(wire);			
-		//builder.Add(wire, BRepBuilderAPI_MakeEdge(foo[i+0],foo[i+1]));
-		//builder.Add(wire, BRepBuilderAPI_MakeEdge(foo[i+1],foo[i+2]));
-		//builder.Add(wire, BRepBuilderAPI_MakeEdge(foo[i+2],foo[i+0]));
-		//0,2, 2,1, 1,0 
-		builder.Add(wire, BRepBuilderAPI_MakeEdge(foo[i+0],foo[i+2]));
-		builder.Add(wire, BRepBuilderAPI_MakeEdge(foo[i+2],foo[i+1]));
-		builder.Add(wire, BRepBuilderAPI_MakeEdge(foo[i+1],foo[i+0]));
+	aSewingTool.Load( aComp );
+  aSewingTool.Perform();
+  //aShape = aSewingTool.SewedShape();
+  //aShape = aComp;
 	
-		sew.Add( BRepBuilderAPI_MakeFace( wire ) ); // add to sewing object
-	}	
-
-	sew.Perform(); 
-	
-	TopoDS_Shape obj = sew.SewedShape(); // get the shape
+	TopoDS_Shape obj = aSewingTool.SewedShape(); // get the shape
 
 	BRepBuilderAPI_MakeSolid brep_solid(TopoDS::Shell(obj)); // Now some unclear foo that took a bit to find 
 																													 // Yes the shape will show type three as a shell 																													 // but you have to wrap it TopoDS::shell() anyway :| 	
 	aShape = brep_solid.Solid();
 
 	// Now becomes necessary it would seem to generate a new triangulation. Okay fine. 
+	
+	//Handle(BRepTools_ReShape) reshaper = new BRepTools_ReShape();
+	//for (TopExp_Explorer exp (aShape , TopAbs_FACE); exp.More(); exp.Next())
+	//{
+	//	TopoDS_Face face = TopoDS::Face (exp.Current());
+	//	if ( face.Orientation() == TopAbs_REVERSED ) { 
+	//		TopoDS_Shape face2 = face.Reversed();
+	//		reshaper->Replace(face, face2, Standard_True );  
+	//	}
+	//}
+	//aShape = reshaper->Apply(aShape);
+
+	//for (TopExp_Explorer exp (aShape , TopAbs_FACE); exp.More(); exp.Next())
+	//{
+	//	TopoDS_Face face = TopoDS::Face (exp.Current());
+	//	if ( face.Orientation() == TopAbs_REVERSED ) { 
+	//		std::cout << "reverse" << std::endl; 
+	//	}
+	//	else {
+	//		std::cout << "forward" << std::endl; 
+	//	}
+	//}
+	//aShape = reshaper->Apply(aShape);
 
 	// Tolerances 
-	Standard_Real tolerance = 0.25;
-  Standard_Real angular_tolerance = 0.5;
-  Standard_Real minTriangleSize = Precision::Confusion();
-
+	//Standard_Real tolerance = 0.25;
+  //Standard_Real angular_tolerance = 0.5;
+  //Standard_Real minTriangleSize = Precision::Confusion();
 	// Set the tolerances
-	BRepMesh_FastDiscret::Parameters m_MeshParams;
-  m_MeshParams.ControlSurfaceDeflection = Standard_True; 
-  m_MeshParams.Deflection = tolerance;
-  m_MeshParams.MinSize = minTriangleSize;
-  m_MeshParams.InternalVerticesMode = Standard_False;
-  m_MeshParams.Relative=Standard_False;
-  m_MeshParams.Angle = angular_tolerance;
-
+	//BRepMesh_FastDiscret::Parameters m_MeshParams;
+  //m_MeshParams.ControlSurfaceDeflection = Standard_True; 
+  //m_MeshParams.Deflection = tolerance;
+  //m_MeshParams.MinSize = minTriangleSize;
+  //m_MeshParams.InternalVerticesMode = Standard_False;
+  //m_MeshParams.Relative=Standard_False;
+  //m_MeshParams.Angle = angular_tolerance;
 	// Incremental meshes from shapes 
-	BRepMesh_IncrementalMesh ( aShape , m_MeshParams );
+	//BRepMesh_IncrementalMesh ( aShape , m_MeshParams );
 
 	return err;
 }
@@ -570,7 +597,10 @@ bool BrepCgal::minkowski( TopoDS_Shape &aShape , TopoDS_Shape &bShape , TopoDS_S
  	  //print_polyhedron_wavefront(file,*i);
  		//file.close(); 
 		createBrepFromPolyhedron( *i , rShape ); 
+		//std::cout << createPolySetFromPolyhedron( *i ); 
   }
+
+	//createBrepFromPolyhedron( aMesh , rShape ); 
 
 	//ShapeAnalysis_ShapeContents cont;
   //cont.Clear();
