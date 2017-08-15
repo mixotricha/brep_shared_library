@@ -10,21 +10,3 @@ Classic issues with floating point resolution.
 
 http://www.cs.unc.edu/~snoeyink/c/c205/Triangle.pdf
 
-Feature        | Available
----------------|------------
-sphere         | y
-cube           | y
-cylinder       | y
-polyhedron     | y
-polygon        | y
-circle         | y
-union          | y
-intersection   | y 
-difference     | y 
-linear_extrude | y 
-minkowski      | y
-rotate         | y
-translate      | y 
-scale          | n 
-color/colour   | n 
-

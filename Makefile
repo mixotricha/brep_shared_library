@@ -1,14 +1,12 @@
 
 CXX=g++
-DEFINES= 
+DEFINES=-DDEBUG -DCGAL_EIGEN3_ENABLED -DCGAL_USE_GMP -DCGAL_USE_MPFR
 
-CXXFLAGS = -O3 -std=gnu++11 -frounding-math -m64 -shared -fPIC -DCGAL_EIGEN3_ENABLED -DCGAL_USE_GMP -DCGAL_USE_MPFR 
-TARGET=brep.so
+#CXXFLAGS = -O3 -std=gnu++11 -frounding-math -m64 -shared -fPIC -DCGAL_EIGEN3_ENABLED -DCGAL_USE_GMP -DCGAL_USE_MPFR 
+#TARGET=brep.so
 
-
-#CXXFLAGS= -std=gnu++11 -frounding-math -m64 -fPIC -DCGAL_EIGEN3_ENABLED -DCGAL_USE_GMP -DCGAL_USE_MPFR 
-#TARGET=brep
-
+CXXFLAGS= -std=gnu++11 -frounding-math -m64 -fPIC  
+TARGET=brep
 
 OC_INCL_DIR=/home/mixotricha/workspace/opencascade-7.1.0/inc
 OC_LIB_DIR=/home/mixotricha/workspace/opencascade-7.1.0/lin64/gcc/lib
@@ -20,14 +18,22 @@ CGAL_INCL_DIR=/usr/local/include/CGAL
 CGAL_LIB_DIR =/usr/local/lib
 CGAL_LIB=-lGGAL 
 
-INCLUDES       = -I. -I./src -I/usr/local/include/eigen3 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I$(OC_INCL_DIR) 
+INCLUDES = -I. -I./src \
+-I/usr/local/include/eigen3 \
+-I/usr/lib/x86_64-linux-gnu/glib-2.0/include \
+-I$(OC_INCL_DIR) 
 	  
-LIBS       = -L/usr/local/lib -ldl -lm -lz -lHalf -lmpfr -lgmp -lpthread -Wl,-rpath,$(OC_LIB_DIR) -L$(OC_LIB_DIR) $(OC_LIB) -Wl,-rpath,$(CGAL_LIB_DIR) -L$(CGAL_LIB_DIR) -lCGAL $(BOOST_LIBS) 
-		
-first: all
+LIBS = -L/usr/local/lib -ldl -lm -lz -lHalf -lmpfr -lgmp -lpthread \
+-Wl,-rpath,$(OC_LIB_DIR) -L$(OC_LIB_DIR) $(OC_LIB) \
+-Wl,-rpath,$(CGAL_LIB_DIR) -L$(CGAL_LIB_DIR) -lCGAL \
+$(BOOST_LIBS) 
 
-all:	
-	$(CXX) ./src/BrepCgal.cpp ./src/brep.cpp $(CXXFLAGS) -o $(TARGET) $(DEFINES) $(INCLUDES) $(LIBS) 
+SRC = ./src/ReadWrite.cpp ./src/PrintUtils.cc ./src/BrepCgal.cpp ./src/Geometry.cc ./src/brep.cpp
+		
+first: shared
+
+shared:	
+	$(CXX) $(SRC) $(CXXFLAGS) -o $(TARGET) $(DEFINES) $(INCLUDES) $(LIBS) 
 
 
 

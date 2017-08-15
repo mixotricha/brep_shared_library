@@ -21,22 +21,27 @@
  *                                                                         *
  ***************************************************************************/
 
-class StlMesh_Mesh;
-class TopoDS_Shape;
+#include "PrintUtils.h"
+#include <sstream>
+#include <stdio.h>
+#include <boost/algorithm/string.hpp>
+#include <boost/algorithm/string/predicate.hpp>
+#include <boost/circular_buffer.hpp>
+#include <boost/filesystem.hpp>
 
-class BrepCgal 
+//OutputHandlerFunc *outputhandler = NULL;
+//void *outputhandler_data = NULL;
+
+typedef void (*callbackFP_t)(char* bastard);
+callbackFP_t douglas_adams; 
+
+int set_callback(callbackFP_t fp) {
+    douglas_adams = fp;
+}
+
+void PRINT(const std::string &msg)
 {
-public:
-
-	Standard_EXPORT BrepCgal(); 
-  template <typename Polyhedron> bool BrepToCgal(TopoDS_Shape& aShape, Polyhedron& p);
-	Standard_EXPORT bool minkowski(TopoDS_Shape& aShape, TopoDS_Shape& bShape, TopoDS_Shape &rShape);
-								
-protected:
-
-
-private:
-
-
-};
+	//(*douglas_adams)( (char*)msg.c_str() );	  
+	std::cout << msg << std::endl; 
+}
 

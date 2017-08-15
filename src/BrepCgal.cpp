@@ -116,8 +116,8 @@
 #include "ShapeFix_FixSmallFace.hxx"
 #include "BRepAlgoAPI_Fuse.hxx"
 
+#include <PrintUtils.h>
 #include <BrepCgal.h>
-
 
 #include <boost/foreach.hpp>
 #include <boost/unordered_set.hpp>
@@ -261,9 +261,9 @@ template <typename Polyhedron> bool createPolySetFromPolyhedron(const Polyhedron
 // ---------------------------------------------------------------------------------
 template <typename Polyhedron> bool createBrepFromPolyhedron(const Polyhedron &p,TopoDS_Shape &aShape) {
 
-	if (CGAL::Polygon_mesh_processing::is_outward_oriented(p)) {
-		std::cout << "correct" << std::endl; 
-	}
+	//if (CGAL::Polygon_mesh_processing::is_outward_oriented(p)) {
+	//	PRINT("Polyhedron For Brep Conversion Is Closed");  
+	//}
 
 	int i = 0; 
 	double xa,ya,za,xb,yb,zb,xc,yc,zc; 
@@ -337,46 +337,6 @@ template <typename Polyhedron> bool createBrepFromPolyhedron(const Polyhedron &p
 	BRepBuilderAPI_MakeSolid brep_solid(TopoDS::Shell(obj)); // Now some unclear foo that took a bit to find 
 																													 // Yes the shape will show type three as a shell 																													 // but you have to wrap it TopoDS::shell() anyway :| 	
 	aShape = brep_solid.Solid();
-
-	// Now becomes necessary it would seem to generate a new triangulation. Okay fine. 
-	
-	//Handle(BRepTools_ReShape) reshaper = new BRepTools_ReShape();
-	//for (TopExp_Explorer exp (aShape , TopAbs_FACE); exp.More(); exp.Next())
-	//{
-	//	TopoDS_Face face = TopoDS::Face (exp.Current());
-	//	if ( face.Orientation() == TopAbs_REVERSED ) { 
-	//		TopoDS_Shape face2 = face.Reversed();
-	//		reshaper->Replace(face, face2, Standard_True );  
-	//	}
-	//}
-	//aShape = reshaper->Apply(aShape);
-
-	//for (TopExp_Explorer exp (aShape , TopAbs_FACE); exp.More(); exp.Next())
-	//{
-	//	TopoDS_Face face = TopoDS::Face (exp.Current());
-	//	if ( face.Orientation() == TopAbs_REVERSED ) { 
-	//		std::cout << "reverse" << std::endl; 
-	//	}
-	//	else {
-	//		std::cout << "forward" << std::endl; 
-	//	}
-	//}
-	//aShape = reshaper->Apply(aShape);
-
-	// Tolerances 
-	//Standard_Real tolerance = 0.25;
-  //Standard_Real angular_tolerance = 0.5;
-  //Standard_Real minTriangleSize = Precision::Confusion();
-	// Set the tolerances
-	//BRepMesh_FastDiscret::Parameters m_MeshParams;
-  //m_MeshParams.ControlSurfaceDeflection = Standard_True; 
-  //m_MeshParams.Deflection = tolerance;
-  //m_MeshParams.MinSize = minTriangleSize;
-  //m_MeshParams.InternalVerticesMode = Standard_False;
-  //m_MeshParams.Relative=Standard_False;
-  //m_MeshParams.Angle = angular_tolerance;
-	// Incremental meshes from shapes 
-	//BRepMesh_IncrementalMesh ( aShape , m_MeshParams );
 
 	return err;
 }
@@ -461,11 +421,11 @@ bool is_weakly_convex(Polyhedron const& p) {
   	typename Polyhedron::Plane_3 p(i->opposite()->vertex()->point(), i->vertex()->point(), i->next()->vertex()->point());
     if (p.has_on_positive_side(i->opposite()->next()->vertex()->point()) &&
        CGAL::squared_distance(p, i->opposite()->next()->vertex()->point()) > 1e-8) {
-				std::cout << "Was Weakly Convex" << std::endl; 
+				PRINT("Was Weakly Convex");  
      		return true;
  		 }
 	}
-  std::cout << "Was Not Weakly Convex" << std::endl; 
+  PRINT("Was Not Weakly Convex");  
   return false; 
 }
 
@@ -476,7 +436,9 @@ bool is_weakly_convex(Polyhedron const& p) {
 // -------------------------------------------------------------------------
  
 bool BrepCgal::minkowski( TopoDS_Shape &aShape , TopoDS_Shape &bShape , TopoDS_Shape &rShape ) {
-	
+
+	std::stringstream output;
+
 	Polyhedron aMesh;
 	BrepToCgal(aShape,aMesh); 
 	CGAL::Polygon_mesh_processing::stitch_borders(aMesh);
@@ -493,11 +455,11 @@ bool BrepCgal::minkowski( TopoDS_Shape &aShape , TopoDS_Shape &bShape , TopoDS_S
  std::list<CGAL::Polyhedron_3<Hull_kernel> > result_parts;	
 
  if ( (A.is_convex()) || (is_weakly_convex(aMesh))) {
-	std::cout << "Minkowski: child A is convex" << std::endl; 
+	PRINT("Minkowski: child A is convex"); 
 	P[0].push_back(aMesh);
  }
  else { 
-	std::cout << "Minkowski: child A was not convex doing decomposition" << std::endl; 
+	PRINT("Minkowski: child A was not convex doing decomposition"); 
 	Nef_polyhedron decomposed_nef;
 	CGAL::convex_decomposition_3(A);
 	Nef_polyhedron::Volume_const_iterator ci = ++decomposed_nef.volumes_begin();
@@ -509,14 +471,17 @@ bool BrepCgal::minkowski( TopoDS_Shape &aShape , TopoDS_Shape &bShape , TopoDS_S
 		}
 	}
  } 
- std::cout << "Minkowski: decomposed into " << P[0].size() << std::endl;
+
+ output << "Minkowski: decomposed into " << P[0].size();	
+ PRINT( output.str() ); 
+ output.clear(); 
 
  if ((B.is_convex()) || (is_weakly_convex(bMesh))) {
-		std::cout << "Minkowski: child B is convex" << std::endl; 
+		PRINT("Minkowski: child B is convex");  
 	P[1].push_back(bMesh);
  }
  else { 
-	std::cout << "Minkowski: child B was not convex doing decomposition" << std::endl; 
+	PRINT("Minkowski: child B was not convex doing decomposition");  
 	Nef_polyhedron decomposed_nef;
 	CGAL::convex_decomposition_3(B);
 	Nef_polyhedron::Volume_const_iterator ci = ++decomposed_nef.volumes_begin();
@@ -528,7 +493,10 @@ bool BrepCgal::minkowski( TopoDS_Shape &aShape , TopoDS_Shape &bShape , TopoDS_S
 		}
 	}
  } 
- std::cout << "Minkowski: decomposed into " << P[1].size() << std::endl;
+ 
+ output << "Minkowski: decomposed into " << P[1].size();	
+ PRINT( output.str() ); 
+ output.clear(); 
 
  std::vector<Hull_kernel::Point_3> points[2];
  std::vector<Hull_kernel::Point_3> minkowski_points;
@@ -591,28 +559,8 @@ bool BrepCgal::minkowski( TopoDS_Shape &aShape , TopoDS_Shape &bShape , TopoDS_S
  	}
 
 	for (std::list<CGAL::Polyhedron_3<Hull_kernel> >::iterator i = result_parts.begin(); i != result_parts.end(); ++i) {
-		//createPolySetFromPolyhedron( *i );
- 		//std::ofstream file;
- 		//file.open ("test.obj");
- 	  //print_polyhedron_wavefront(file,*i);
- 		//file.close(); 
 		createBrepFromPolyhedron( *i , rShape ); 
-		//std::cout << createPolySetFromPolyhedron( *i ); 
   }
-
-	//createBrepFromPolyhedron( aMesh , rShape ); 
-
-	//ShapeAnalysis_ShapeContents cont;
-  //cont.Clear();
-  //cont.Perform(rShape);
-  //std::cout  << "OCC CONTENTS" << endl;
-  //std::cout  << "============" << endl;
-  //std::cout  << "SOLIDS   : " << cont.NbSolids() << endl;
-  //std::cout  << "SHELLS   : " << cont.NbShells() << endl;
-  //std::cout  << "FACES    : " << cont.NbFaces() << endl;
-  //std::cout  << "WIRES    : " << cont.NbWires() << endl;
-  //std::cout  << "EDGES    : " << cont.NbEdges() << endl;
-  //std::cout  << "VERTICES : " << cont.NbVertices() << endl;
 
   return 0;
 	

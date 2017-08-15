@@ -73,8 +73,11 @@
 #include <BRepBuilderAPI_Transform.hxx>
 #include <BRepOffsetAPI_Sewing.hxx>
 
-// Brep To CGAL conversion 
+// brep shared library includes
+#include <PrintUtils.h>
+#include <ReadWrite.h>
 #include <BrepCgal.h>
+#include <Geometry.h>
  
 // Streams 
 #include <fstream>
@@ -88,320 +91,196 @@
 #include <cmath>
 #include <assert.h>
 
-// externs for FFI binding to node 
-extern "C" char *sphere(float radius, float x , float y , float z );
-extern "C" char *box(float x , float y , float z , float xs , float ys , float zs);
-extern "C" char *cone(float r1,float r2,float h,float z);
-extern "C" char *polyhedron(int **faces,float *points,int f_length); 
-extern "C" char *difference(char *a, char*b);
-extern "C" char *uni(char *a, char*b);
-extern "C" char *intersection(char *a, char*b);
-extern "C" char *convert_brep_tostring(char *brep,float quality);
-extern "C" char *translate(float x , float y , float z , char *a);
-extern "C" char *rotateX(float x , char *a);
-extern "C" char *rotateY(float y , char *a);
-extern "C" char *rotateZ(float z , char *a);
-extern "C" char *circle(float r1);
-extern "C" char *extrude(float h1, char *a);
-extern "C" char *cylinder(float r1,float h,float z);
-extern "C" char *minkowski(char *a, char*b);
-
 using namespace std;
 
-// couple of test functions 
-std::string test() { return std::string("hello"); }
-std::string process_request(char *text) { return std::string("hello");  }
+// ffi bindings 
 
-// Write BREP 
-std::string Write_BREP(const TopoDS_Shape& shape)
-{
-		//std::cout << "Generating BREP" << std::endl; 
-		std::stringstream stream;
-    BRepTools::Write(shape,stream);		
-		return stream.str(); 
-}
+extern "C" char* ffi_sphere(float radius, float x , float y , float z );
+extern "C" char* ffi_box(float x , float y , float z , float xs , float ys , float zs);
+extern "C" char* ffi_cone(float r1,float r2,float h,float z);
+extern "C" char* ffi_polyhedron(int **faces,float *points,int f_length); 
+extern "C" char* ffi_difference(char *a, char*b);
+extern "C" char* ffi_union(char *a, char*b);
+extern "C" char* ffi_intersection(char *a, char*b);
+extern "C" char* ffi_translate(float x , float y , float z , char *a);
+extern "C" char* ffi_scale(float x , float y , float z , char *a);
+extern "C" char* ffi_rotateX(float x , char *a);
+extern "C" char* ffi_rotateY(float y , char *a);
+extern "C" char* ffi_rotateZ(float z , char *a);
+extern "C" char* ffi_circle(float r1);
+extern "C" char* ffi_extrude(float h1, char *a);
+extern "C" char* ffi_cylinder(float r1,float h,float z);
+extern "C" char* ffi_minkowski(char *a, char*b);
 
-// Read BREP 
-TopoDS_Shape Read_BREP(std::string brep)
-{
-		//std::cout << "Reading BREP" << std::endl; 
-		BRep_Builder brepb;
-
-		std::stringstream stream;
-		TopoDS_Shape shape;
-		stream << brep << std::endl; 
-    BRepTools::Read(shape,stream,brepb);		
-		return shape; 
-}
-
-// Write as STL
-void Write_STL(const TopoDS_Shape& shape)
-{
-    StlAPI_Writer stl_writer;
-		BRepMesh_IncrementalMesh ( shape, 0.01);	
-    stl_writer.Write(shape, "demo1.stl");		
-}
-
-// Write a brep out to an STL string 
-char *convert_brep_tostring(char *brep,float quality) { 
-	
-	// Tolerances 
-	Standard_Real tolerance = quality;
-  Standard_Real angular_tolerance = 0.5;
-  Standard_Real minTriangleSize = Precision::Confusion();
-
-	TopoDS_Shape shape = Read_BREP(brep);
-	StlAPI_Writer stl_writer;
-
-	// Set the tolerances
-	BRepMesh_FastDiscret::Parameters m_MeshParams;
-  m_MeshParams.ControlSurfaceDeflection = Standard_True; 
-  m_MeshParams.Deflection = tolerance;
-  m_MeshParams.MinSize = minTriangleSize;
-  m_MeshParams.InternalVerticesMode = Standard_False;
-  m_MeshParams.Relative=Standard_False;
-  m_MeshParams.Angle = angular_tolerance;
-
-	BRepMesh_IncrementalMesh ( shape, m_MeshParams );	
-	char *new_buf = strdup((char*)stl_writer.Dump(shape).c_str());			
-  return new_buf; 
-}
-
-// Translate a brep 
-char *translate( float x , float y , float z , char *a ) { 
-	//std::cout << "Translating object" << std::endl; 
-	TopoDS_Shape shape_a = Read_BREP(a);
-	gp_Trsf translate;
-  translate.SetTranslation(gp_Vec(x, y, z));
-	TopoDS_Shape transformed = BRepBuilderAPI_Transform(shape_a, translate, false).Shape();
-	char *new_buf = strdup((char*)Write_BREP(transformed).c_str());	
+char* ffi_sphere(float radius, float x , float y , float z ) { 
+	ReadWrite readwrite; 
+	Geometry geometry; 
+	TopoDS_Shape shape_a; 
+	geometry.sphere( radius , x , y , z , shape_a ); 
+	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
 	return new_buf; 
 }
 
-// Rotate brep x axis 
-char *rotateX( float x , char *a ) { 
-	//std::cout << "Rotating object" << std::endl; 
-	Standard_Real xr = x;
-	TopoDS_Shape shape_a = Read_BREP(a);
-	gp_Trsf rotate;
-  rotate.SetRotation( gp::OX(), xr );
-	TopoDS_Shape transformed = BRepBuilderAPI_Transform(shape_a, rotate).Shape();
-	char *new_buf = strdup((char*)Write_BREP(transformed).c_str());	
+char* ffi_cube(float x , float y , float z , float xs , float ys , float zs) { 
+	ReadWrite readwrite; 
+	Geometry geometry; 
+	TopoDS_Shape shape_a; 
+	geometry.cube( x , y , z , xs , ys , zs , shape_a ); 
+	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
 	return new_buf; 
 }
 
-// Rotate brep y axis 
-char *rotateY( float y , char *a ) { 
-	//std::cout << "Rotating object" << std::endl; 
-	Standard_Real yr = y;
-	TopoDS_Shape shape_a = Read_BREP(a);
-	gp_Trsf rotate;
-  rotate.SetRotation( gp::OY(), yr );
-	TopoDS_Shape transformed = BRepBuilderAPI_Transform(shape_a, rotate).Shape();
-	char *new_buf = strdup((char*)Write_BREP(transformed).c_str());	
+char* ffi_cylinder(float r1,float h,float z) { 
+	ReadWrite readwrite; 
+	Geometry geometry; 
+	TopoDS_Shape shape_a; 
+	geometry.cylinder( r1 , h , z , shape_a ); 
+	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
 	return new_buf; 
 }
 
-// Rotate brep z axis 
-char *rotateZ( float z , char *a ) { 
-	//std::cout << "Rotating object" << std::endl; 
-	Standard_Real zr = z;
-	TopoDS_Shape shape_a = Read_BREP(a);
-	gp_Trsf rotate;
-  rotate.SetRotation( gp::OZ(), zr );
-	TopoDS_Shape transformed = BRepBuilderAPI_Transform(shape_a, rotate).Shape();
-	char *new_buf = strdup((char*)Write_BREP(transformed).c_str());	
+char* ffi_circle(float r1) { 
+	ReadWrite readwrite; 
+	Geometry geometry; 
+	TopoDS_Shape shape_a; 
+	geometry.circle( r1 ,shape_a ); 
+	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
 	return new_buf; 
 }
 
-// Prim Sphere
-char *sphere(float radius, float x , float y , float z ) {
-	//std::cout << "Making Sphere" << radius << " " << x << " " << y << " " << z << std::endl;  	  	
-	Standard_Real sphere_radius = radius;
-	//gp_Ax2 sphere_origin = gp_Ax2(gp_Pnt(x,y,z), gp_Dir(0,0,1));
-	//TopoDS_Shape sphere = BRepPrimAPI_MakeSphere(sphere_origin, sphere_radius ).Shape();
-	TopoDS_Shape sphere = BRepPrimAPI_MakeSphere( sphere_radius ).Shape();
-
-	char *new_buf = strdup((char*)Write_BREP(sphere).c_str());	
-	return new_buf; 
-} 
-
-// Prim box 
-char *box(float x , float y , float z , float xs , float ys , float zs) {
-	//std::cout << "Making Box" << xs << " " << ys << " " << zs << std::endl;  	  	
-	Standard_Real box_xs = xs;
-	Standard_Real box_ys = ys;
-	Standard_Real box_zs = zs;
-	gp_Ax2 box_origin = gp_Ax2(gp_Pnt(x,y,z), gp_Dir(0,0,1));
-	TopoDS_Shape box = BRepPrimAPI_MakeBox(     box_origin,   box_xs , box_ys  , box_zs ).Shape();
-	char *new_buf = strdup((char*)Write_BREP(box).c_str());	
-	return new_buf; 
-} 
-
-
-// Prim Cylinder
-char *cylinder(float r1, float h,float z) {
-	//std::cout << "Making Cylinder" << r1 << " " << h << std::endl;  	  	
-	Standard_Real cylinder_r1 = r1;
-	Standard_Real cylinder_h  = h;
-	Standard_Real cylinder_z = z; 
-	gp_Ax2 cylinder_origin = gp_Ax2(gp_Pnt(0,0,cylinder_z), gp_Dir(0,0,1));
-
-	TopoDS_Shape cylinder = BRepPrimAPI_MakeCylinder( cylinder_origin , cylinder_r1, cylinder_h ).Shape();
-	char *new_buf = strdup((char*)Write_BREP(cylinder).c_str());	
-	return new_buf; 
-} 
-
-// Prim cone 
-char *cone(float r1,float r2,float h,float z) {
-	//std::cout << "Making Cone" << r1 << " " << r2 << " " << h << std::endl;  	  	
-	Standard_Real cone_r1 = r1;
-	Standard_Real cone_r2 = r2;
-	Standard_Real cone_h  = h;
-	Standard_Real cone_z = z; 
-	gp_Ax2 cone_origin = gp_Ax2(gp_Pnt(0,0,cone_z), gp_Dir(0,0,1));
-	TopoDS_Shape cone = BRepPrimAPI_MakeCone( cone_origin , cone_r1, cone_r2 , cone_h ).Shape();
-	char *new_buf = strdup((char*)Write_BREP(cone).c_str());	
-	return new_buf; 
-} 
-
-// Prim 2d circle 
-char *circle(float r1) { 
-	Standard_Real radius = r1;
-	gp_Circ c = gp_Circ(gp_Ax2(gp_Pnt(0,0,0),gp_Dir(0,0,1)), radius );
-	TopoDS_Edge Ec = BRepBuilderAPI_MakeEdge(c);
-	TopoDS_Wire Wc = BRepBuilderAPI_MakeWire(Ec);
-	TopoDS_Face F = BRepBuilderAPI_MakeFace(Wc);
-	char *new_buf = strdup((char*)Write_BREP(F).c_str());	
-	return new_buf; 	
-}
-
-// Polyhedron 
-char *polyhedron(int **faces,float *points,int f_length) {
-	BRepOffsetAPI_Sewing sew(0.1);
-	Standard_Integer a,b; 
-	Standard_Integer width = 0; 
-	Standard_Real x1, y1, z1;
-	Standard_Real x2, y2, z2; 
-	TopoDS_Wire wire;		
-	BRep_Builder builder;
-	std::vector<TopoDS_Vertex> foo; 
-	for ( int i = 0; i < f_length; i++ ) { // through face sets
-		width = faces[i][0]; 		
-		for ( int ii = 1; ii < width; ii++ ) { // make list of points
-			a = faces[i][ii]; 
-			x1 = points[(a*3)+0]; y1 = points[(a*3)+1]; z1 = points[(a*3)+2];
-			foo.push_back( BRepBuilderAPI_MakeVertex(gp_Pnt(x1,y1,z1)) ); 	
-		}
-		builder.MakeWire(wire);			
-		for ( int iii = 0; iii < foo.size()-1; iii++ ) { // build wire from points in foo for a face set
-			builder.Add(wire, BRepBuilderAPI_MakeEdge(foo[iii],foo[iii+1]));
-		}
-		builder.Add(wire, BRepBuilderAPI_MakeEdge(foo[foo.size()-1],foo[0])); // closing wire for face set 
-		sew.Add( BRepBuilderAPI_MakeFace( wire ) ); // add to sewing object 
-		foo.clear(); 
-	}
-	 
-	sew.Perform(); // sew it together
-	TopoDS_Shape obj = sew.SewedShape(); // get the shape
-  
-	BRepBuilderAPI_MakeSolid brep_solid(TopoDS::Shell(obj)); // Now some unclear foo that took a bit to find 
-																													 // Yes the shape will show type three as a shell 
-																													 // but you have to wrap it TopoDS::shel() anyway :| 	
-	TopoDS_Solid solid = brep_solid.Solid();
-
-	char *new_buf = strdup((char*)Write_BREP(solid).c_str());	
+char* ffi_cone(float r1,float r2,float h,float z) { 
+	ReadWrite readwrite; 
+	Geometry geometry; 
+	TopoDS_Shape shape_a; 
+	geometry.cone( r1 , r2 , h , z , shape_a ); 
+	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
 	return new_buf; 
 }
 
-// Extrusion ( does not include twist yet ) 
-char *extrude(float h1,char *a) { 
-	Standard_Real height = h1;
-	TopoDS_Shape shape_a = Read_BREP(a);
-	TopoDS_Shape S4 = BRepPrimAPI_MakePrism(shape_a,gp_Vec(0,0,height));
-	char *new_buf = strdup((char*)Write_BREP(S4).c_str());	
-	return new_buf; 	
-}
-
-// Difference between two objects
-char *difference(char *a,char *b) { 
-	//std::cout << "Generating Difference" << std::endl; 
-	TopoDS_Shape shape_a = Read_BREP(a);
-	TopoDS_Shape shape_b = Read_BREP(b);
-
-	TopoDS_Shape boolean_result = BRepAlgoAPI_Cut( shape_a ,  shape_b ).Shape();
-
-	char *new_buf = strdup((char*)Write_BREP(boolean_result).c_str());	
+char* ffi_polyhedron(int **faces,float *points,int f_length) { 
+	ReadWrite readwrite; 
+	Geometry geometry; 
+	TopoDS_Shape shape_a; 
+	geometry.polyhedron( faces , points , f_length , shape_a ); 
+	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
 	return new_buf; 
 }
 
-// Union between two objects
-char *uni(char *a,char *b) { 
-	//std::cout << "Generating Union" << std::endl; 
-	TopoDS_Shape shape_a = Read_BREP(a);
-	TopoDS_Shape shape_b = Read_BREP(b);
-
-	TopoDS_Shape boolean_result = BRepAlgoAPI_Fuse( shape_a ,  shape_b ).Shape();
-		
-	char *new_buf = strdup((char*)Write_BREP(boolean_result).c_str());	
+char* ffi_difference(char *a, char*b) { 
+	ReadWrite readwrite;
+	Geometry geometry; 
+	TopoDS_Shape shape_a = readwrite.ReadBREP(a);
+	TopoDS_Shape shape_b = readwrite.ReadBREP(b);
+	geometry.difference( shape_a , shape_b ); 
+	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
 	return new_buf; 
 }
 
-// Intersection between two objects
-char *intersection(char *a,char *b) { 
-	//std::cout << "Generating Intersection" << std::endl; 
-	TopoDS_Shape shape_a = Read_BREP(a);
-	TopoDS_Shape shape_b = Read_BREP(b);
-	TopoDS_Shape boolean_result = BRepAlgoAPI_Common( shape_a ,  shape_b ).Shape();
-	char *new_buf = strdup((char*)Write_BREP(boolean_result).c_str());	
+char* ffi_union(char *a, char*b) { 
+	ReadWrite readwrite;
+	Geometry geometry; 
+	TopoDS_Shape shape_a = readwrite.ReadBREP(a);
+	TopoDS_Shape shape_b = readwrite.ReadBREP(b);
+	geometry.uni( shape_a , shape_b ); 
+	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
 	return new_buf; 
 }
 
-char *minkowski(char *a,char *b) {
-	// Tolerances 
-	Standard_Real tolerance = 0.25;
-  Standard_Real angular_tolerance = 0.5;
-  Standard_Real minTriangleSize = Precision::Confusion();
-	// Shapes
-	TopoDS_Shape shape_a = Read_BREP(a);	
-	TopoDS_Shape shape_b = Read_BREP(b);
- 	TopoDS_Shape rShape; 
-	// Set the tolerances
-	BRepMesh_FastDiscret::Parameters m_MeshParams;
-  m_MeshParams.ControlSurfaceDeflection = Standard_True; 
-  m_MeshParams.Deflection = tolerance;
-  m_MeshParams.MinSize = minTriangleSize;
-  m_MeshParams.InternalVerticesMode = Standard_False;
-  m_MeshParams.Relative=Standard_False;
-  m_MeshParams.Angle = angular_tolerance;
-	// Incremental meshes from shapes 
-	BRepMesh_IncrementalMesh ( shape_a, m_MeshParams );
-	BRepMesh_IncrementalMesh ( shape_b, m_MeshParams );
- 	// In to the CGAL 
-	BrepCgal brepcgal;
-	brepcgal.minkowski( shape_a , shape_b , rShape );
-	// Out again but only -one- result for now  	
-	char *new_buf = strdup((char*)Write_BREP(rShape).c_str());	
+char* ffi_intersection(char *a, char*b) { 
+	ReadWrite readwrite;
+	Geometry geometry; 
+	TopoDS_Shape shape_a = readwrite.ReadBREP(a);
+	TopoDS_Shape shape_b = readwrite.ReadBREP(b);
+	geometry.intersection( shape_a , shape_b ); 
+	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
 	return new_buf; 
 }
 
-//int main() { 
-//	std::cout <<   
-	//difference(
-  //  minkowski(
-  //      box(-25.0,-25.0,-25.0,50.0,50.0,50.0), 
-  //      sphere(25.0, 0.0 , 0.0 , 0.0)
-  //  ),
-	//	translate( 0.0 , 0.0 , 50.0 , sphere(15.0,0.0,0.0,0.0))
-	//);
-//	uni(
- //   minkowski(
-   //     box(-25.0,-25.0,-25.0,50.0,50.0,50.0), 
-   //     sphere(25.0, 0.0 , 0.0 , 0.0)
-   // ),
-	//	translate( 0.0 , 0.0 , -100.0 , cylinder(25.0,200.0,0.0))
-//	);
+char* ffi_translate(float x , float y , float z , char *a) { 
+	ReadWrite readwrite;
+	Geometry geometry; 		
+	TopoDS_Shape shape_a = readwrite.ReadBREP(a);
+	geometry.translate( x , y , z , shape_a  ); 
+	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
+	return new_buf; 
+}
 
-// return 0;  
-//}
+char* ffi_scale(float x , float y , float z , char *a) { 
+	ReadWrite readwrite;
+	Geometry geometry; 		
+	TopoDS_Shape shape_a = readwrite.ReadBREP(a);
+	geometry.scale( x , y , z , shape_a  ); 
+	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
+	return new_buf; 
+
+}
+
+char* ffi_rotateX(float x , char *a) { 
+	ReadWrite readwrite;
+	Geometry geometry; 		
+	TopoDS_Shape shape_a = readwrite.ReadBREP(a);
+	geometry.rotateX( x , shape_a  ); 
+	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
+	return new_buf; 
+}
+
+char* ffi_rotateY(float y , char *a) { 
+	ReadWrite readwrite;
+	Geometry geometry; 		
+	TopoDS_Shape shape_a = readwrite.ReadBREP(a);
+	geometry.rotateY( y , shape_a  ); 
+	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
+	return new_buf; 
+}
+
+char* ffi_rotateZ(float z , char *a) { 
+	ReadWrite readwrite;
+	Geometry geometry; 		
+	TopoDS_Shape shape_a = readwrite.ReadBREP(a);
+	geometry.rotateZ( z , shape_a  ); 
+	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
+	return new_buf; 
+
+}
+
+char* ffi_extrude(float h1, char *a) { 
+	ReadWrite readwrite;
+	Geometry geometry; 		
+	TopoDS_Shape shape_a = readwrite.ReadBREP(a);
+	geometry.extrude( h1 , shape_a  ); 
+	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
+	return new_buf; 
+}
+
+char* ffi_minkowski(char *a, char*b) { 
+	ReadWrite readwrite;
+	Geometry geometry; 		
+	TopoDS_Shape shape_a = readwrite.ReadBREP(a);
+	TopoDS_Shape shape_b = readwrite.ReadBREP(b);
+	geometry.minkowski(shape_a,shape_b); 	
+	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
+	return new_buf; 
+}
+
+int main() { 
+	std::cout <<   
+		ffi_scale( 1.0 , 1.0 , 2.0 ,ffi_difference(
+     ffi_minkowski(
+     	ffi_cube(-25.0,-25.0,-25.0,50.0,50.0,50.0), 
+      ffi_sphere(25.0, 0.0 , 0.0 , 0.0)
+    ),
+		ffi_translate( 0.0 , 0.0 , 50.0 , ffi_sphere(15.0,0.0,0.0,0.0))
+	));
+
+	/*ffi_uni(
+  	ffi_minkowski(
+    	ffi_box(-25.0,-25.0,-25.0,50.0,50.0,50.0), 
+      ffi_sphere(25.0, 0.0 , 0.0 , 0.0)
+    ),
+		ffi_translate( 0.0 , 0.0 , -100.0 , ffi_cylinder(25.0,200.0,0.0))
+	);
+ ffi_scale( 1.0 , 1.0 , 2.0 , ffi_sphere(25.0, 0.0 , 0.0 , 0.0) );*/
+ 
+ return 0;  
+}
 

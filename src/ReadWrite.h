@@ -21,22 +21,21 @@
  *                                                                         *
  ***************************************************************************/
 
-class StlMesh_Mesh;
 class TopoDS_Shape;
 
-class BrepCgal 
-{
-public:
+using namespace std;
 
-	Standard_EXPORT BrepCgal(); 
-  template <typename Polyhedron> bool BrepToCgal(TopoDS_Shape& aShape, Polyhedron& p);
-	Standard_EXPORT bool minkowski(TopoDS_Shape& aShape, TopoDS_Shape& bShape, TopoDS_Shape &rShape);
-								
-protected:
+class ReadWrite { 
 
+	public:
+		Standard_EXPORT ReadWrite();
+		Standard_EXPORT std::string WriteBREP(const TopoDS_Shape& shape);
+		Standard_EXPORT TopoDS_Shape ReadBREP(std::string brep);
+		Standard_EXPORT void  WriteSTL(const TopoDS_Shape& shape);
+		Standard_EXPORT char* ConvertBrepTostring(char *brep,float quality);
 
-private:
+	protected:
 
+	private:
 
 };
-
