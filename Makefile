@@ -1,12 +1,12 @@
 
 CXX=g++
-DEFINES=-DDEBUG -DCGAL_EIGEN3_ENABLED -DCGAL_USE_GMP -DCGAL_USE_MPFR
+DEFINES=-DCGAL_EIGEN3_ENABLED -DCGAL_USE_GMP -DCGAL_USE_MPFR
 
-#CXXFLAGS = -O3 -std=gnu++11 -frounding-math -m64 -shared -fPIC -DCGAL_EIGEN3_ENABLED -DCGAL_USE_GMP -DCGAL_USE_MPFR 
-#TARGET=brep.so
+CXXFLAGS = -O3 -std=gnu++11 -frounding-math -m64 -shared -fPIC -DCGAL_EIGEN3_ENABLED -DCGAL_USE_GMP -DCGAL_USE_MPFR 
+TARGET=brep.so
 
-CXXFLAGS= -std=gnu++11 -frounding-math -m64 -fPIC  
-TARGET=brep
+#CXXFLAGS= -std=gnu++11 -frounding-math -m64 -fPIC  
+#TARGET=brep
 
 OC_INCL_DIR=/home/mixotricha/workspace/opencascade-7.1.0/inc
 OC_LIB_DIR=/home/mixotricha/workspace/opencascade-7.1.0/lin64/gcc/lib
@@ -15,7 +15,10 @@ OC_LIB=-lTKOpenGl -lTKernel -lTKGeomBase -lTKTopAlgo -lTKOffset -lTKBool -lTKPri
 BOOST_LIBS=-lboost_iostreams -lboost_system -lboost_chrono -lboost_date_time -lboost_atomic -lboost_thread
 
 CGAL_INCL_DIR=/usr/local/include/CGAL
-CGAL_LIB_DIR =/usr/local/lib
+#CGAL_LIB_DIR =/usr/local/lib
+
+CGAL_LIB_DIR =/usr/lib/x86_64-linux-gnu
+
 CGAL_LIB=-lGGAL 
 
 INCLUDES = -I. -I./src \

@@ -96,7 +96,7 @@ using namespace std;
 // ffi bindings 
 
 extern "C" char* ffi_sphere(float radius, float x , float y , float z );
-extern "C" char* ffi_box(float x , float y , float z , float xs , float ys , float zs);
+extern "C" char* ffi_cube(float x , float y , float z , float xs , float ys , float zs);
 extern "C" char* ffi_cone(float r1,float r2,float h,float z);
 extern "C" char* ffi_polyhedron(int **faces,float *points,int f_length); 
 extern "C" char* ffi_difference(char *a, char*b);
@@ -111,6 +111,12 @@ extern "C" char* ffi_circle(float r1);
 extern "C" char* ffi_extrude(float h1, char *a);
 extern "C" char* ffi_cylinder(float r1,float h,float z);
 extern "C" char* ffi_minkowski(char *a, char*b);
+extern "C" char* ffi_convert_brep_tostring(char *brep,float quality);
+
+char* ffi_convert_brep_tostring(char *brep,float quality) { 
+	ReadWrite readwrite;
+	return readwrite.ConvertBrepTostring(brep,quality);
+} 
 
 char* ffi_sphere(float radius, float x , float y , float z ) { 
 	ReadWrite readwrite; 
@@ -262,25 +268,26 @@ char* ffi_minkowski(char *a, char*b) {
 	return new_buf; 
 }
 
-int main() { 
-	std::cout <<   
-		ffi_scale( 1.0 , 1.0 , 2.0 ,ffi_difference(
-     ffi_minkowski(
-     	ffi_cube(-25.0,-25.0,-25.0,50.0,50.0,50.0), 
-      ffi_sphere(25.0, 0.0 , 0.0 , 0.0)
-    ),
-		ffi_translate( 0.0 , 0.0 , 50.0 , ffi_sphere(15.0,0.0,0.0,0.0))
-	));
+#ifdef DEBUG
+	int main() { 
+		std::cout <<   
+			ffi_scale( 1.0 , 1.0 , 2.0 ,ffi_difference(
+		   ffi_minkowski(
+		   	ffi_cube(-25.0,-25.0,-25.0,50.0,50.0,50.0), 
+		    ffi_sphere(25.0, 0.0 , 0.0 , 0.0)
+		  ),
+			ffi_translate( 0.0 , 0.0 , 50.0 , ffi_sphere(15.0,0.0,0.0,0.0))
+		));
 
-	/*ffi_uni(
-  	ffi_minkowski(
-    	ffi_box(-25.0,-25.0,-25.0,50.0,50.0,50.0), 
-      ffi_sphere(25.0, 0.0 , 0.0 , 0.0)
-    ),
-		ffi_translate( 0.0 , 0.0 , -100.0 , ffi_cylinder(25.0,200.0,0.0))
-	);
- ffi_scale( 1.0 , 1.0 , 2.0 , ffi_sphere(25.0, 0.0 , 0.0 , 0.0) );*/
- 
- return 0;  
-}
-
+		/*ffi_uni(
+			ffi_minkowski(
+		  	ffi_box(-25.0,-25.0,-25.0,50.0,50.0,50.0), 
+		    ffi_sphere(25.0, 0.0 , 0.0 , 0.0)
+		  ),
+			ffi_translate( 0.0 , 0.0 , -100.0 , ffi_cylinder(25.0,200.0,0.0))
+		);
+	 ffi_scale( 1.0 , 1.0 , 2.0 , ffi_sphere(25.0, 0.0 , 0.0 , 0.0) );*/
+	 
+	 return 0;  
+	}
+#endif

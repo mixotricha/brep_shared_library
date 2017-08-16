@@ -41,7 +41,10 @@ int set_callback(callbackFP_t fp) {
 
 void PRINT(const std::string &msg)
 {
-	//(*douglas_adams)( (char*)msg.c_str() );	  
-	std::cout << msg << std::endl; 
+	#ifdef DEBUG
+		std::cout << msg << std::endl;
+	#else 
+		(*douglas_adams)( (char*)msg.c_str() );	  
+ 	#endif
 }
 
