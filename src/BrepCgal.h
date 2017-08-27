@@ -30,8 +30,9 @@ public:
 
 	Standard_EXPORT BrepCgal(); 
   template <typename Polyhedron> bool BrepToCgal(TopoDS_Shape& aShape, Polyhedron& p);
-	Standard_EXPORT bool minkowski(TopoDS_Shape& aShape, TopoDS_Shape& bShape, TopoDS_Shape &rShape);
-								
+	Standard_EXPORT bool minkowski(TopoDS_Shape aShape, TopoDS_Shape bShape, TopoDS_Shape &rShape);
+	Standard_EXPORT	bool hull( TopoDS_Shape *shapes, TopoDS_Shape &rShape );
+					
 protected:
 
 

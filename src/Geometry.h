@@ -5,6 +5,13 @@ class Geometry {
 	public:
 		Standard_EXPORT Geometry(); 
 		
+		std::vector<TopoDS_Shape> shapeStack; 
+
+		Standard_EXPORT bool add(TopoDS_Shape shapeA);
+		Standard_EXPORT bool get( int index , TopoDS_Shape &rShape);
+		Standard_EXPORT bool set(int indexA , TopoDS_Shape shapeA);
+		Standard_EXPORT int currentIndex(); 
+
 		Standard_EXPORT bool circle(float r1,TopoDS_Shape &aShape);
 		Standard_EXPORT bool polyhedron(int **faces,float *points,int f_length,TopoDS_Shape &aShape); 
 
@@ -20,7 +27,7 @@ class Geometry {
 		Standard_EXPORT bool rotateZ(float z , TopoDS_Shape &aShape);
 		
 		Standard_EXPORT bool extrude(float h1, TopoDS_Shape &aShape);
-		Standard_EXPORT bool minkowski(TopoDS_Shape &aShape,TopoDS_Shape &bShape);
+		Standard_EXPORT bool minkowski(TopoDS_Shape &aShape,TopoDS_Shape bShape);
 
 		Standard_EXPORT bool difference( TopoDS_Shape &aShape, TopoDS_Shape &bShape);
 		Standard_EXPORT bool uni(TopoDS_Shape &aShape, TopoDS_Shape &bShape);

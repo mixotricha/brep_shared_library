@@ -93,200 +93,193 @@
 
 using namespace std;
 
+// Instances because \m/ \m/ ...
+
+ReadWrite readwrite;
+Geometry geometry; 		
+
 // ffi bindings 
 
-extern "C" char* ffi_sphere(float radius, float x , float y , float z );
-extern "C" char* ffi_cube(float x , float y , float z , float xs , float ys , float zs);
-extern "C" char* ffi_cone(float r1,float r2,float h,float z);
-extern "C" char* ffi_polyhedron(int **faces,float *points,int f_length); 
-extern "C" char* ffi_difference(char *a, char*b);
-extern "C" char* ffi_union(char *a, char*b);
-extern "C" char* ffi_intersection(char *a, char*b);
-extern "C" char* ffi_translate(float x , float y , float z , char *a);
-extern "C" char* ffi_scale(float x , float y , float z , char *a);
-extern "C" char* ffi_rotateX(float x , char *a);
-extern "C" char* ffi_rotateY(float y , char *a);
-extern "C" char* ffi_rotateZ(float z , char *a);
-extern "C" char* ffi_circle(float r1);
-extern "C" char* ffi_extrude(float h1, char *a);
-extern "C" char* ffi_cylinder(float r1,float h,float z);
-extern "C" char* ffi_minkowski(char *a, char*b);
-extern "C" char* ffi_convert_brep_tostring(char *brep,float quality);
+extern "C" int   ffi_sphere(float radius, float x , float y , float z );
+extern "C" int   ffi_cube(float x , float y , float z , float xs , float ys , float zs);
+extern "C" int   ffi_cone(float r1,float r2,float h,float z);
+extern "C" int   ffi_polyhedron(int **faces,float *points,int f_length); 
+extern "C" int   ffi_difference(int indexA, int indexB);
+extern "C" int   ffi_union(int indexA, int indexB);
+extern "C" int   ffi_intersection(int indexA, int indexB);
+extern "C" int   ffi_translate(float x , float y , float z , int indexA);
+extern "C" int   ffi_scale(float x , float y , float z , int indexA);
+extern "C" int   ffi_rotateX(float x , int indexA);
+extern "C" int   ffi_rotateY(float y , int indexA);
+extern "C" int   ffi_rotateZ(float z , int indexA);
+extern "C" int   ffi_circle(float r1);
+extern "C" int   ffi_extrude(float h1, int indexA);
+extern "C" int   ffi_cylinder(float r1,float h,float z);
+extern "C" int   ffi_minkowski(int indexA, int indexB);
+extern "C" char* ffi_convert_brep_tostring(int indexA,float quality);
+extern "C" int   ffi_cleanup(); 
 
-char* ffi_convert_brep_tostring(char *brep,float quality) { 
-	ReadWrite readwrite;
+int ffi_cleanup() { geometry.shapeStack.clear(); }
+
+char* ffi_convert_brep_tostring(int indexA,float quality) {
+	TopoDS_Shape brep; 
+	geometry.get( indexA , brep );  
 	return readwrite.ConvertBrepTostring(brep,quality);
 } 
 
-char* ffi_sphere(float radius, float x , float y , float z ) { 
-	ReadWrite readwrite; 
-	Geometry geometry; 
+int ffi_sphere(float radius, float x , float y , float z ) { 
 	TopoDS_Shape shape_a; 
 	geometry.sphere( radius , x , y , z , shape_a ); 
-	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
-	return new_buf; 
+	geometry.add( shape_a ); 
+	return geometry.currentIndex(); 
 }
 
-char* ffi_cube(float x , float y , float z , float xs , float ys , float zs) { 
-	ReadWrite readwrite; 
-	Geometry geometry; 
+int ffi_cube(float x , float y , float z , float xs , float ys , float zs) { 
 	TopoDS_Shape shape_a; 
 	geometry.cube( x , y , z , xs , ys , zs , shape_a ); 
-	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
-	return new_buf; 
+	geometry.add( shape_a ); 
+	return geometry.currentIndex(); 
 }
 
-char* ffi_cylinder(float r1,float h,float z) { 
-	ReadWrite readwrite; 
-	Geometry geometry; 
+int ffi_cylinder(float r1,float h,float z) { 
 	TopoDS_Shape shape_a; 
 	geometry.cylinder( r1 , h , z , shape_a ); 
-	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
-	return new_buf; 
+	geometry.add( shape_a ); 
+	return geometry.currentIndex(); 
 }
 
-char* ffi_circle(float r1) { 
-	ReadWrite readwrite; 
-	Geometry geometry; 
+int ffi_circle(float r1) { 
 	TopoDS_Shape shape_a; 
 	geometry.circle( r1 ,shape_a ); 
-	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
-	return new_buf; 
+	geometry.add( shape_a ); 
+	return geometry.currentIndex(); 
 }
 
-char* ffi_cone(float r1,float r2,float h,float z) { 
-	ReadWrite readwrite; 
-	Geometry geometry; 
+int ffi_cone(float r1,float r2,float h,float z) { 
 	TopoDS_Shape shape_a; 
 	geometry.cone( r1 , r2 , h , z , shape_a ); 
-	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
-	return new_buf; 
+	geometry.add( shape_a ); 
+	return geometry.currentIndex(); 
 }
 
-char* ffi_polyhedron(int **faces,float *points,int f_length) { 
-	ReadWrite readwrite; 
-	Geometry geometry; 
+int ffi_polyhedron(int **faces,float *points,int f_length) { 
 	TopoDS_Shape shape_a; 
 	geometry.polyhedron( faces , points , f_length , shape_a ); 
-	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
-	return new_buf; 
+	geometry.add( shape_a ); 
+	return geometry.currentIndex(); 
 }
 
-char* ffi_difference(char *a, char*b) { 
-	ReadWrite readwrite;
-	Geometry geometry; 
-	TopoDS_Shape shape_a = readwrite.ReadBREP(a);
-	TopoDS_Shape shape_b = readwrite.ReadBREP(b);
+int ffi_difference(int indexA, int indexB) { 
+	TopoDS_Shape shape_a; 
+	TopoDS_Shape shape_b;
+	geometry.get( indexA , shape_a ); 
+	geometry.get( indexB , shape_b ); 
 	geometry.difference( shape_a , shape_b ); 
-	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
-	return new_buf; 
+	geometry.set( indexA , shape_a ); 
+	return indexA; 
 }
 
-char* ffi_union(char *a, char*b) { 
-	ReadWrite readwrite;
-	Geometry geometry; 
-	TopoDS_Shape shape_a = readwrite.ReadBREP(a);
-	TopoDS_Shape shape_b = readwrite.ReadBREP(b);
+int ffi_union(int indexA, int indexB) { 
+	TopoDS_Shape shape_a; 
+	TopoDS_Shape shape_b;
+	geometry.get( indexA , shape_a ); 
+	geometry.get( indexB , shape_b ); 
 	geometry.uni( shape_a , shape_b ); 
-	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
-	return new_buf; 
+	geometry.set( indexA , shape_a ); 
+	return indexA; 
 }
 
-char* ffi_intersection(char *a, char*b) { 
-	ReadWrite readwrite;
-	Geometry geometry; 
-	TopoDS_Shape shape_a = readwrite.ReadBREP(a);
-	TopoDS_Shape shape_b = readwrite.ReadBREP(b);
+int ffi_intersection(int indexA, int indexB) { 
+	TopoDS_Shape shape_a; 
+	TopoDS_Shape shape_b;
+	geometry.get( indexA , shape_a ); 
+	geometry.get( indexB , shape_b ); 
 	geometry.intersection( shape_a , shape_b ); 
-	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
-	return new_buf; 
+	geometry.set( indexA , shape_a ); 
+	return indexA; 
 }
 
-char* ffi_translate(float x , float y , float z , char *a) { 
-	ReadWrite readwrite;
-	Geometry geometry; 		
-	TopoDS_Shape shape_a = readwrite.ReadBREP(a);
+int ffi_translate(float x , float y , float z , int indexA) { 
+	TopoDS_Shape shape_a; 
+	geometry.get( indexA , shape_a ); 
 	geometry.translate( x , y , z , shape_a  ); 
-	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
-	return new_buf; 
+	geometry.set( indexA , shape_a ); 
+	return indexA; 
 }
 
-char* ffi_scale(float x , float y , float z , char *a) { 
-	ReadWrite readwrite;
-	Geometry geometry; 		
-	TopoDS_Shape shape_a = readwrite.ReadBREP(a);
+int ffi_scale(float x , float y , float z , int indexA) { 
+	TopoDS_Shape shape_a; 
+	geometry.get( indexA , shape_a ); 
 	geometry.scale( x , y , z , shape_a  ); 
-	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
-	return new_buf; 
-
+	geometry.set( indexA , shape_a ); 
+	return indexA; 
 }
 
-char* ffi_rotateX(float x , char *a) { 
-	ReadWrite readwrite;
-	Geometry geometry; 		
-	TopoDS_Shape shape_a = readwrite.ReadBREP(a);
+int ffi_rotateX(float x , int indexA) { 
+	TopoDS_Shape shape_a; 
+	geometry.get( indexA , shape_a ); 
 	geometry.rotateX( x , shape_a  ); 
-	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
-	return new_buf; 
+	geometry.set( indexA , shape_a ); 
+	return indexA; 
 }
 
-char* ffi_rotateY(float y , char *a) { 
-	ReadWrite readwrite;
-	Geometry geometry; 		
-	TopoDS_Shape shape_a = readwrite.ReadBREP(a);
+int ffi_rotateY(float y , int indexA) { 
+	TopoDS_Shape shape_a; 
+	geometry.get( indexA , shape_a ); 
 	geometry.rotateY( y , shape_a  ); 
-	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
-	return new_buf; 
+	geometry.set( indexA , shape_a ); 
+	return indexA; 
 }
 
-char* ffi_rotateZ(float z , char *a) { 
-	ReadWrite readwrite;
-	Geometry geometry; 		
-	TopoDS_Shape shape_a = readwrite.ReadBREP(a);
+int ffi_rotateZ(float z , int indexA) { 
+	TopoDS_Shape shape_a; 
+	geometry.get( indexA , shape_a ); 
 	geometry.rotateZ( z , shape_a  ); 
-	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
-	return new_buf; 
-
+	geometry.set( indexA , shape_a ); 
+	return indexA; 
 }
 
-char* ffi_extrude(float h1, char *a) { 
-	ReadWrite readwrite;
-	Geometry geometry; 		
-	TopoDS_Shape shape_a = readwrite.ReadBREP(a);
+int ffi_extrude(float h1, int indexA) { 
+	TopoDS_Shape shape_a; 
+	geometry.get( indexA , shape_a ); 
 	geometry.extrude( h1 , shape_a  ); 
-	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
-	return new_buf; 
+	geometry.set( indexA , shape_a ); 
+	return indexA; 
 }
 
-char* ffi_minkowski(char *a, char*b) { 
-	ReadWrite readwrite;
-	Geometry geometry; 		
-	TopoDS_Shape shape_a = readwrite.ReadBREP(a);
-	TopoDS_Shape shape_b = readwrite.ReadBREP(b);
-	geometry.minkowski(shape_a,shape_b); 	
-	char *new_buf = strdup((char*)readwrite.WriteBREP(shape_a).c_str());	
-	return new_buf; 
+// ffi hook for minkowski
+int ffi_minkowski(int indexA , int indexB ) { 
+	TopoDS_Shape shape_a; 
+	TopoDS_Shape shape_b;
+	geometry.get( indexA , shape_a ); 
+	geometry.get( indexB , shape_b ); 
+	geometry.minkowski( shape_a , shape_b ); 
+	geometry.set( indexA , shape_a ); 
+	return indexA; 
 }
 
 #ifdef DEBUG
 	int main() { 
-		std::cout <<   
-			ffi_scale( 1.0 , 1.0 , 2.0 ,ffi_difference(
+	
+		
+		ffi_scale( 1.0 , 1.0 , 2.0 ,ffi_difference(
 		   ffi_minkowski(
 		   	ffi_cube(-25.0,-25.0,-25.0,50.0,50.0,50.0), 
 		    ffi_sphere(25.0, 0.0 , 0.0 , 0.0)
 		  ),
 			ffi_translate( 0.0 , 0.0 , 50.0 , ffi_sphere(15.0,0.0,0.0,0.0))
-		));
+		 )); 
+		
+		std::cout << ffi_convert_brep_tostring( 2 , 0.9 ); 
 
-		/*ffi_uni(
-			ffi_minkowski(
-		  	ffi_box(-25.0,-25.0,-25.0,50.0,50.0,50.0), 
-		    ffi_sphere(25.0, 0.0 , 0.0 , 0.0)
-		  ),
-			ffi_translate( 0.0 , 0.0 , -100.0 , ffi_cylinder(25.0,200.0,0.0))
-		);
-	 ffi_scale( 1.0 , 1.0 , 2.0 , ffi_sphere(25.0, 0.0 , 0.0 , 0.0) );*/
+		//ffi_uni(
+		//	ffi_minkowski(
+		//  	ffi_box(-25.0,-25.0,-25.0,50.0,50.0,50.0), 
+		//    ffi_sphere(25.0, 0.0 , 0.0 , 0.0)
+		//  ),
+		//	ffi_translate( 0.0 , 0.0 , -100.0 , ffi_cylinder(25.0,200.0,0.0))
+		//);
+	  //ffi_scale( 1.0 , 1.0 , 2.0 , ffi_sphere(25.0, 0.0 , 0.0 , 0.0) );*/
 	 
 	 return 0;  
 	}

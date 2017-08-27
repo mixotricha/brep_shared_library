@@ -32,7 +32,7 @@ class ReadWrite {
 		Standard_EXPORT std::string WriteBREP(const TopoDS_Shape& shape);
 		Standard_EXPORT TopoDS_Shape ReadBREP(std::string brep);
 		Standard_EXPORT void  WriteSTL(const TopoDS_Shape& shape);
-		Standard_EXPORT char* ConvertBrepTostring(char *brep,float quality);
+		Standard_EXPORT char* ConvertBrepTostring(TopoDS_Shape brep,float quality);
 
 	protected:
 

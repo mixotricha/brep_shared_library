@@ -309,8 +309,8 @@ bool Geometry::extrude(float h1,TopoDS_Shape &aShape) {
 	return false; 
 }
 
-bool Geometry::minkowski(TopoDS_Shape &aShape,TopoDS_Shape &bShape) { 	
-
+// Generate minkowski 
+bool Geometry::minkowski(TopoDS_Shape &aShape,TopoDS_Shape bShape) { 	
 	try { 	
 		// Tolerances 
 		Standard_Real tolerance = 0.25;
@@ -335,7 +335,7 @@ bool Geometry::minkowski(TopoDS_Shape &aShape,TopoDS_Shape &bShape) {
 		return true; 
 	}
 	catch(const std::exception&) { 
-		PRINT("A Horrific CGAL Assertion in minkowski stuffed everything...."); 
+		PRINT("CGAL Assertion in Minkowski"); 
 	}
 	return false; 
 }
@@ -377,4 +377,25 @@ bool Geometry::intersection(TopoDS_Shape &aShape, TopoDS_Shape &bShape) {
 	return false; 
 }
 
+// add a new shape to the stack 
+bool Geometry::add(TopoDS_Shape shapeA) {
+		shapeStack.push_back( shapeA );
+		return true; 
+}
+// alter an existing shape in the stack 
+bool Geometry::set(int indexA , TopoDS_Shape shapeA) {
+		shapeStack[indexA] = shapeA;
+		return true; 
+}
+
+// get a shape from the stack 
+bool Geometry::get( int index , TopoDS_Shape &rShape) { 
+	rShape = shapeStack[index]; 
+	return true; 
+}
+
+// get the current location ( size - 1 ) of the stack 
+int Geometry::currentIndex() { 
+	return shapeStack.size()-1; 
+}
 

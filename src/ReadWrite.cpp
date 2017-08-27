@@ -100,14 +100,15 @@ void ReadWrite::WriteSTL(const TopoDS_Shape& shape)
 }
 
 // Write a brep out to an STL string 
-char* ReadWrite::ConvertBrepTostring(char *brep,float quality) { 
+char* ReadWrite::ConvertBrepTostring(TopoDS_Shape brep,float quality) { 
 	
 	// Tolerances 
 	Standard_Real tolerance = quality;
   Standard_Real angular_tolerance = 0.5;
   Standard_Real minTriangleSize = Precision::Confusion();
 
-	TopoDS_Shape shape = ReadBREP(brep);
+	//TopoDS_Shape shape = ReadBREP(brep);
+	TopoDS_Shape shape = brep; 
 	StlAPI_Writer stl_writer;
 
 	// Set the tolerances

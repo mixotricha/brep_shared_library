@@ -429,13 +429,70 @@ bool is_weakly_convex(Polyhedron const& p) {
   return false; 
 }
 
+// -------------------------------------------------------------------------
+// Following the exising openscad code as guide. Generate hull. 
+// -------------------------------------------------------------------------
+bool BrepCgal::hull( TopoDS_Shape *shapes, TopoDS_Shape &rShape ) {
+
+	rShape = shapes[0]; 
+
+	//const Geometry::Geometries &children, PolySet &result
+	/*typedef CGAL::Epick K;
+	// Collect point cloud
+	// NB! CGAL's convex_hull_3() doesn't like std::set iterators, so we use a list
+	// instead.
+	std::list<K::Point_3> points;
+	for(const auto &item : children) {
+		const shared_ptr<const Geometry> &chgeom = item.second;
+		const CGAL_Nef_polyhedron *N = dynamic_cast<const CGAL_Nef_polyhedron *>(chgeom.get());
+		if (N) {
+			if (!N->isEmpty()) {
+				for (CGAL_Nef_polyhedron3::Vertex_const_iterator i = N->p3->vertices_begin(); i != N->p3->vertices_end(); ++i) {
+					points.push_back(vector_convert<K::Point_3>(i->point()));
+				}
+			}
+		} else {
+			const PolySet *ps = dynamic_cast<const PolySet *>(chgeom.get());
+			if (ps) {
+				for(const auto &p : ps->polygons) {
+					for(const auto &v : p) {
+						points.push_back(K::Point_3(v[0], v[1], v[2]));
+					}
+				}
+			}
+		}
+	}
+	if (points.size() <= 3) return false;
+	// Apply hull
+	bool success = false;
+	if (points.size() >= 4) {
+		CGAL::Failure_behaviour old_behaviour = CGAL::set_error_behaviour(CGAL::THROW_EXCEPTION);
+		try {
+			CGAL::Polyhedron_3<K> r;
+			CGAL::convex_hull_3(points.begin(), points.end(), r);
+     	PRINTDB("After hull vertices: %d", r.size_of_vertices());
+      PRINTDB("After hull facets: %d", r.size_of_facets());
+      PRINTDB("After hull closed: %d", r.is_closed());
+      PRINTDB("After hull valid: %d", r.is_valid());
+			success = !createPolySetFromPolyhedron(r, result);
+		}
+		catch (const CGAL::Failure_exception &e) {
+			PRINTB("ERROR: CGAL error in applyHull(): %s", e.what());
+		}
+		CGAL::set_error_behaviour(old_behaviour);
+	}
+	return success;*/
+	return true; 
+}
 
 // -------------------------------------------------------------------------
 // Following the existing openscad code as guide. Two Brep shapes converted
 // to CGAL Polyhedrons. 
 // -------------------------------------------------------------------------
  
-bool BrepCgal::minkowski( TopoDS_Shape &aShape , TopoDS_Shape &bShape , TopoDS_Shape &rShape ) {
+bool BrepCgal::minkowski( TopoDS_Shape aShape , TopoDS_Shape bShape , TopoDS_Shape &rShape ) {
+
+	PRINT("Performing Minkowski."); 
 
 	std::stringstream output;
 
@@ -454,14 +511,15 @@ bool BrepCgal::minkowski( TopoDS_Shape &aShape , TopoDS_Shape &bShape , TopoDS_S
  std::list<Polyhedron> P[2];
  std::list<CGAL::Polyhedron_3<Hull_kernel> > result_parts;	
 
- if ( (A.is_convex()) || (is_weakly_convex(aMesh))) {
+  if ( (A.is_convex()) || (is_weakly_convex(aMesh))) {
 	PRINT("Minkowski: child A is convex"); 
 	P[0].push_back(aMesh);
  }
  else { 
-	PRINT("Minkowski: child A was not convex doing decomposition"); 
+	PRINT("Minkowski: A was not convex doing decomposition"); 
 	Nef_polyhedron decomposed_nef;
-	CGAL::convex_decomposition_3(A);
+	decomposed_nef = A; 
+	CGAL::convex_decomposition_3(decomposed_nef);
 	Nef_polyhedron::Volume_const_iterator ci = ++decomposed_nef.volumes_begin();
 	for(; ci != decomposed_nef.volumes_end(); ++ci) {
 		if(ci->mark()) {
@@ -470,20 +528,21 @@ bool BrepCgal::minkowski( TopoDS_Shape &aShape , TopoDS_Shape &bShape , TopoDS_S
 			P[0].push_back(poly);
 		}
 	}
+	output << "Minkowski: decomposed into " << P[0].size();	
+  PRINT( output.str() ); 
+  output.clear(); 
  } 
 
- output << "Minkowski: decomposed into " << P[0].size();	
- PRINT( output.str() ); 
- output.clear(); 
 
- if ((B.is_convex()) || (is_weakly_convex(bMesh))) {
-		PRINT("Minkowski: child B is convex");  
+  if ( (B.is_convex()) || (is_weakly_convex(bMesh))) {
+	PRINT("Minkowski: child B is convex");  
 	P[1].push_back(bMesh);
  }
  else { 
 	PRINT("Minkowski: child B was not convex doing decomposition");  
 	Nef_polyhedron decomposed_nef;
-	CGAL::convex_decomposition_3(B);
+	decomposed_nef = B; 
+	CGAL::convex_decomposition_3(decomposed_nef);
 	Nef_polyhedron::Volume_const_iterator ci = ++decomposed_nef.volumes_begin();
 	for(; ci != decomposed_nef.volumes_end(); ++ci) {
 		if(ci->mark()) {
@@ -492,11 +551,11 @@ bool BrepCgal::minkowski( TopoDS_Shape &aShape , TopoDS_Shape &bShape , TopoDS_S
 			P[1].push_back(poly);
 		}
 	}
+	output << "Minkowski: decomposed into " << P[1].size();	
+  PRINT( output.str() ); 
+  output.clear(); 
  } 
  
- output << "Minkowski: decomposed into " << P[1].size();	
- PRINT( output.str() ); 
- output.clear(); 
 
  std::vector<Hull_kernel::Point_3> points[2];
  std::vector<Hull_kernel::Point_3> minkowski_points;
@@ -558,8 +617,15 @@ bool BrepCgal::minkowski( TopoDS_Shape &aShape , TopoDS_Shape &bShape , TopoDS_S
 		}
  	}
 
+	int count = 0; 
+	TopoDS_Shape nShape; 
 	for (std::list<CGAL::Polyhedron_3<Hull_kernel> >::iterator i = result_parts.begin(); i != result_parts.end(); ++i) {
-		createBrepFromPolyhedron( *i , rShape ); 
+		createBrepFromPolyhedron( *i , nShape );
+		if ( count == 0 ) rShape = nShape; 
+		if ( count > 0 ) { 
+			rShape = BRepAlgoAPI_Fuse( rShape ,  nShape ).Shape();
+		} 
+		count++; 
   }
 
   return 0;
