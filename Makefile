@@ -8,8 +8,12 @@ TARGET=brep.so
 #CXXFLAGS= -std=gnu++11 -frounding-math -m64 -fPIC  
 #TARGET=brep
 
-OC_INCL_DIR=/home/mixotricha/workspace/opencascade-7.1.0/inc
-OC_LIB_DIR=/home/mixotricha/workspace/opencascade-7.1.0/lin64/gcc/lib
+#OC_INCL_DIR=/home/mixotricha/workspace/opencascade-7.1.0/inc
+#OC_LIB_DIR=/home/mixotricha/workspace/opencascade-7.1.0/lin64/gcc/lib
+
+OC_INCL_DIR=oce/include
+OC_LIB_DIR=oce/lib
+
 OC_LIB=-lTKOpenGl -lTKernel -lTKGeomBase -lTKTopAlgo -lTKOffset -lTKBool -lTKPrim -lTKFillet -lTKMath -lTKService -lTKV3d -lTKIGES -lTKSTL -lTKVRML -lTKSTEP -lTKG3d -lTKG2d -lTKXSBase -lTKShHealing -lTKBO -lTKBRep -lTKMesh 
 
 BOOST_LIBS=-lboost_iostreams -lboost_system -lboost_chrono -lboost_date_time -lboost_atomic -lboost_thread

@@ -29,8 +29,9 @@ class ReadWrite {
 
 	public:
 		Standard_EXPORT ReadWrite();
-		Standard_EXPORT std::string WriteBREP(const TopoDS_Shape& shape);
+		Standard_EXPORT std::string  WriteBREP(const TopoDS_Shape& shape);
 		Standard_EXPORT TopoDS_Shape ReadBREP(std::string brep);
+		Standard_EXPORT std::string  Dump(const TopoDS_Shape& theShape);
 		Standard_EXPORT void  WriteSTL(const TopoDS_Shape& shape);
 		Standard_EXPORT char* ConvertBrepTostring(TopoDS_Shape brep,float quality);
 
